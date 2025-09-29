@@ -14,3 +14,5 @@ def index():
 # Gunicornから呼ばれるときはこちらは実行されない
 if __name__ == '__main__':
     app.run(debug=True)
+
+
