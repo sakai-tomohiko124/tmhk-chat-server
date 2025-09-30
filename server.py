@@ -5283,7 +5283,14 @@ MANAGE_LIST_MEMBERS_HTML = """
 """
 # （ここまで追加）
 
+
+
 if __name__ == '__main__':
+    # 本番環境では debug=False で実行する
+    # host='0.0.0.0' はコンテナや外部からのアクセスを受け付けるための標準設定
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+
+#if __name__ == '__main__':
     # 開発サーバー起動時にスケジューラーが二重に起動するのを防ぐ
     # use_reloader=False はスケジューラーを安定動作させるために重要
-    socketio.run(app, debug=True, use_reloader=False)
+#    socketio.run(app, debug=True, use_reloader=False)
