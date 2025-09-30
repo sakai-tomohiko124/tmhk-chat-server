@@ -71,7 +71,7 @@ app.config['SECRET_KEY'] = SECRET_KEY
 
 # その他の設定
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
-DATABASE = os.path.join(app.root_path, 'database', 'hkchat.db') # データベースファイル名変更 (tmchat -> hkchat)
+DATABASE = os.path.join(app.root_path, 'database', 'tmhk.db') # データベースファイル名変更 (tmchat -> hkchat)
 
 # 画像アップロード設定
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'assets', 'uploads')
@@ -344,293 +344,25 @@ def is_system_admin():
             current_user.is_admin and 
             session.get('is_system_admin', False))
 
-# --- 拡張データベーススキーマの初期化 ---
+
 def init_extended_db():
-    """92機能対応の拡張データベーススキーマを作成"""
+    """database/tmhk.sqlファイルからスキーマを読み込みデータベースを構築する"""
     with app.app_context():
         db = get_db()
-        schema_sql = """
-        -- users テーブル
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, email TEXT, password TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_admin INTEGER DEFAULT 0, status TEXT DEFAULT 'active',
-            profile_image TEXT DEFAULT 'default_avatar.png', background_image TEXT DEFAULT 'default_bg.png',
-            status_message TEXT DEFAULT 'はじめまして！', bio TEXT, birthday DATE, account_type TEXT DEFAULT 'private',
-            show_typing INTEGER DEFAULT 1, show_online_status INTEGER DEFAULT 1,
-            -- （ーーここから変更しましたーー）
-            UNIQUE(username), UNIQUE(email, account_type)
-            -- （ーーここまで変更しましたーー）
-        );
-        -- （ここから追加）
-        -- カスタム友達リスト
-        CREATE TABLE IF NOT EXISTS custom_friend_lists (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            list_name TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-        -- カスタムリストのメンバー
-        CREATE TABLE IF NOT EXISTS custom_list_members (
-            list_id INTEGER NOT NULL,
-            friend_id INTEGER NOT NULL,
-            PRIMARY KEY (list_id, friend_id),
-            FOREIGN KEY (list_id) REFERENCES custom_friend_lists(id) ON DELETE CASCADE,
-            FOREIGN KEY (friend_id) REFERENCES users(id)
-        );
-        -- （ここまで追加）
-
-
-        -- messages テーブル
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            room_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            message_type TEXT DEFAULT 'text',
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            reactions TEXT, -- JSON形式でリアクションを保存 (例: '{"👍": [1, 5], "❤️": [2]}')
-            is_deleted INTEGER DEFAULT 0,
-            updated_at TIMESTAMP,
-            FOREIGN KEY (room_id) REFERENCES rooms (id),
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        -- private_messages テーブル
-        CREATE TABLE IF NOT EXISTS private_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sender_id INTEGER NOT NULL,
-            recipient_id INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_from_ai INTEGER DEFAULT 0,
-            is_read INTEGER DEFAULT 0,
-            reactions TEXT, -- JSON形式でリアクションを保存
-            is_deleted INTEGER DEFAULT 0,
-            updated_at TIMESTAMP,
-            FOREIGN KEY (sender_id) REFERENCES users (id),
-            FOREIGN KEY (recipient_id) REFERENCES users (id)
-        );
-        -- （ここから追加）
-        -- ブロックリスト
-        CREATE TABLE IF NOT EXISTS blocked_users (
-            user_id INTEGER NOT NULL,
-            blocked_user_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_id, blocked_user_id),
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (blocked_user_id) REFERENCES users(id)
-        );
-        -- 非表示リスト
-        CREATE TABLE IF NOT EXISTS hidden_users (
-            user_id INTEGER NOT NULL,
-            hidden_user_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_id, hidden_user_id),
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (hidden_user_id) REFERENCES users(id)
-        );
-        -- 自動応答メッセージリスト
-        CREATE TABLE IF NOT EXISTS auto_replies (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            keyword TEXT NOT NULL,
-            response_message TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-        -- 定型文リスト
-        CREATE TABLE IF NOT EXISTS canned_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-        -- （ここまで追加）
-
--- （ーーここから追加しましたーー）
-        -- ai_knowledge_base テーブル (AIの学習内容を保存)
-        CREATE TABLE IF NOT EXISTS ai_knowledge_base (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL, -- 0の場合はグローバルな知識
-            keyword TEXT NOT NULL,
-            fact TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        -- （ーーここまで追加しましたーー）```
-        -- （ーーここまで追加しましたーー）```
-
-        -- friends テーブル
-        CREATE TABLE IF NOT EXISTS friends (
-            user_id INTEGER NOT NULL, friend_id INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
-            is_notification_off INTEGER DEFAULT 0, PRIMARY KEY (user_id, friend_id),
-            FOREIGN KEY (user_id) REFERENCES users (id), FOREIGN KEY (friend_id) REFERENCES users (id)
-        );
-        -- rooms テーブル
-        CREATE TABLE IF NOT EXISTS rooms (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, creator_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (creator_id) REFERENCES users (id)
-        );
-        -- room_members テーブル
-        CREATE TABLE IF NOT EXISTS room_members (
-            room_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY (room_id, user_id),
-            FOREIGN KEY (room_id) REFERENCES rooms (id), FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-
-        -- blocked_notifications テーブル
-        CREATE TABLE IF NOT EXISTS blocked_notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, blocker_id INTEGER NOT NULL, blocked_id INTEGER NOT NULL,
-            notify_at TIMESTAMP NOT NULL, is_notified INTEGER DEFAULT 0,
-            FOREIGN KEY (blocker_id) REFERENCES users (id), FOREIGN KEY (blocked_id) REFERENCES users (id)
-        );
+        # tmhk.sqlファイルのパスを取得
+        sql_file_path = os.path.join(app.root_path, 'database', 'tmhk.sql')
         
-        -- invitation_tokens テーブル
-        CREATE TABLE IF NOT EXISTS invitation_tokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, token TEXT NOT NULL UNIQUE,
-            expires_at TIMESTAMP NOT NULL, FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        -- violation_reports テーブル
-                CREATE TABLE IF NOT EXISTS violation_reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, reporter_id INTEGER NOT NULL, violator_id INTEGER NOT NULL,
-            message_content TEXT NOT NULL, reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, status TEXT DEFAULT 'pending',
-            FOREIGN KEY (violator_id) REFERENCES users (id)
-        );
-        -- announcements テーブル
-        CREATE TABLE IF NOT EXISTS announcements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        -- surveys テーブル
-        CREATE TABLE IF NOT EXISTS surveys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT,
-            is_active INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        -- survey_questions テーブル
-        CREATE TABLE IF NOT EXISTS survey_questions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, survey_id INTEGER NOT NULL, question_text TEXT NOT NULL,
-            question_type TEXT NOT NULL, FOREIGN KEY (survey_id) REFERENCES surveys (id)
-        );
-        -- survey_options テーブル
-        CREATE TABLE IF NOT EXISTS survey_options (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, question_id INTEGER NOT NULL, option_text TEXT NOT NULL,
-            FOREIGN KEY (question_id) REFERENCES survey_questions (id)
-        );
-        -- survey_responses テーブル
-        CREATE TABLE IF NOT EXISTS survey_responses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, survey_id INTEGER NOT NULL,
-            question_id INTEGER NOT NULL, option_id INTEGER, response_text TEXT,
-            responded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id),
-            FOREIGN KEY (survey_id) REFERENCES surveys (id), FOREIGN KEY (question_id) REFERENCES survey_questions (id),
-            FOREIGN KEY (option_id) REFERENCES survey_options (id)
-        );
-        -- timeline_posts テーブル
-        CREATE TABLE IF NOT EXISTS timeline_posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, content TEXT NOT NULL, media_url TEXT,
-            post_type TEXT DEFAULT 'text', likes INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        -- weather_data テーブル
-        CREATE TABLE IF NOT EXISTS weather_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, data TEXT, timestamp TIMESTAMP
-        );
-        -- traffic_data テーブル
-        CREATE TABLE IF NOT EXISTS traffic_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT, timestamp TIMESTAMP
-        );
-        -- disaster_data テーブル
-        CREATE TABLE IF NOT EXISTS disaster_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT, timestamp TIMESTAMP
-        );
-        -- game_scores テーブル
-        CREATE TABLE IF NOT EXISTS game_scores (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, game_type TEXT NOT NULL,
-            score INTEGER DEFAULT 0, played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        -- stamps テーブル
-        CREATE TABLE IF NOT EXISTS stamps (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, image_url TEXT NOT NULL,
-            category TEXT, is_free INTEGER DEFAULT 1
-        );
-        -- user_stamps テーブル
-        CREATE TABLE IF NOT EXISTS user_stamps (
-            user_id INTEGER NOT NULL, stamp_id INTEGER NOT NULL, acquired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_id, stamp_id), FOREIGN KEY (user_id) REFERENCES users (id), FOREIGN KEY (stamp_id) REFERENCES stamps (id)
-        );
-        -- custom_themes テーブル
-        CREATE TABLE IF NOT EXISTS custom_themes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, name TEXT NOT NULL,
-            css_data TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        -- login_streaks テーブル
-        CREATE TABLE IF NOT EXISTS login_streaks (
-            user_id INTEGER PRIMARY KEY, current_streak INTEGER DEFAULT 0, max_streak INTEGER DEFAULT 0,
-            last_login_date DATE, FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        -- missions テーブル
-        CREATE TABLE IF NOT EXISTS missions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT,
-            reward_points INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1
-        );
-        -- user_missions テーブル
-        CREATE TABLE IF NOT EXISTS user_missions (
-            user_id INTEGER NOT NULL, mission_id INTEGER NOT NULL, completed INTEGER DEFAULT 0,
-            completed_at TIMESTAMP, PRIMARY KEY (user_id, mission_id),
-            FOREIGN KEY (user_id) REFERENCES users (id), FOREIGN KEY (mission_id) REFERENCES missions (id)
-        );
-        -- activity_feed テーブル
-        CREATE TABLE IF NOT EXISTS activity_feed (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, activity_type TEXT NOT NULL,
-            activity_data TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        -- ACHIEVEMENT TABLES
-        CREATE TABLE IF NOT EXISTS achievement_criteria (
-            achievement_name TEXT PRIMARY KEY, criteria_description TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS user_achievements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, achievement_name TEXT NOT NULL,
-            description TEXT, achieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id), FOREIGN KEY (achievement_name) REFERENCES achievement_criteria(achievement_name)
-        );
-        CREATE TABLE IF NOT EXISTS user_achievement_progress (
-            user_id INTEGER NOT NULL, achievement_name TEXT NOT NULL, progress INTEGER DEFAULT 0,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, achievement_name),
-            FOREIGN KEY (user_id) REFERENCES users (id), FOREIGN KEY (achievement_name) REFERENCES achievement_criteria(achievement_name)
-        );
-        -- （ーーここから追加しましたーー）
-        -- user_youtube_links テーブル
-        CREATE TABLE IF NOT EXISTS user_youtube_links (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            url TEXT NOT NULL,
-            title TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        -- （ーーここまで追加しましたーー）
-        -- （ここから追加）
-        -- saved_games テーブル (中断したゲームの状態を保存)
-        CREATE TABLE IF NOT EXISTS saved_games (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            room_id TEXT NOT NULL UNIQUE,
-            game_type TEXT NOT NULL,
-            game_state TEXT NOT NULL, -- ゲームの状態をJSON形式で保存
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS saved_game_players (
-            game_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            PRIMARY KEY (game_id, user_id),
-            FOREIGN KEY (game_id) REFERENCES saved_games (id),
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        -- （ここまで追加）
-
-        
-                        -- ... (以下、他の92機能に関連するテーブルスキーマも同様にCREATE IF NOT EXISTSで追加)
-        """
-        db.executescript(schema_sql)
-        db.commit()
-        print('拡張データベースを初期化・確認しました。')
+        try:
+            # SQLファイルを読み込んで実行
+            with open(sql_file_path, 'r', encoding='utf-8') as f:
+                schema_sql = f.read()
+            db.executescript(schema_sql)
+            db.commit()
+            print('データベースをtmhk.sqlから初期化・確認しました。')
+        except FileNotFoundError:
+            print(f"エラー: {sql_file_path} が見つかりません。")
+        except Exception as e:
+            print(f"データベース初期化中にエラーが発生しました: {e}")
 
 
 # --- Flask CLI コマンド ---
