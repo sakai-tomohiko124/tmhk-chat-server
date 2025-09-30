@@ -4975,39 +4975,40 @@ SURVEY_HTML = """
 </html>
 """
 
-
 # （ーーここから変更しましたーー）
 # --- スケジュールタスクの登録と起動 ---
 # アプリケーションコンテキスト内で一度だけ実行されるように設定
-with app.app_context():
-    # 既存のジョブがあればリセット
-    if scheduler.get_job('scraping_job'):
-        scheduler.remove_job('scraping_job')
-    if scheduler.get_job('monthly_survey_job'):
-        scheduler.remove_job('monthly_survey_job')
-    if scheduler.get_job('yearly_event_job'):
-        scheduler.remove_job('yearly_event_job')
-    if scheduler.get_job('weekly_report_job'):
-        scheduler.remove_job('weekly_report_job')
-
-    # 各タスクを登録
-    # 1時間ごとに外部情報を取得
-    scheduler.add_job(scheduled_scraping_tasks, 'interval', hours=1, id='scraping_job', next_run_time=datetime.now())
-    # 毎月1日にアンケート通知
-    scheduler.add_job(schedule_monthly_survey_announcement, 'cron', month='*', day=1, hour=3, id='monthly_survey_job')
-    # 毎週月曜日に機能レポート
-    scheduler.add_job(schedule_weekly_feature_report, 'cron', day_of_week='mon', hour=4, id='weekly_report_job')
-    # 毎年1月1日にイベント企画
-    scheduler.add_job(schedule_yearly_ai_event, 'cron', year='*', month=1, day=1, hour=5, id='yearly_event_job')
-
-    # スケジューラーが起動していなければ起動する
-    if not scheduler.running:
-        try:
-            scheduler.start()
-            print("Scheduler started with all jobs.")
-        except (KeyboardInterrupt, SystemExit):
-            pass
+# with app.app_context():
+#     # 既存のジョブがあればリセット
+#     if scheduler.get_job('scraping_job'):
+#         scheduler.remove_job('scraping_job')
+#     if scheduler.get_job('monthly_survey_job'):
+#         scheduler.remove_job('monthly_survey_job')
+#     if scheduler.get_job('yearly_event_job'):
+#         scheduler.remove_job('yearly_event_job')
+#     if scheduler.get_job('weekly_report_job'):
+#         scheduler.remove_job('weekly_report_job')
+#
+#     # 各タスクを登録
+#     # 1時間ごとに外部情報を取得
+#     scheduler.add_job(scheduled_scraping_tasks, 'interval', hours=1, id='scraping_job', next_run_time=datetime.now())
+#     # 毎月1日にアンケート通知
+#     scheduler.add_job(schedule_monthly_survey_announcement, 'cron', month='*', day=1, hour=3, id='monthly_survey_job')
+#     # 毎週月曜日に機能レポート
+#     scheduler.add_job(schedule_weekly_feature_report, 'cron', day_of_week='mon', hour=4, id='weekly_report_job')
+#     # 毎年1月1日にイベント企画
+#     scheduler.add_job(schedule_yearly_ai_event, 'cron', year='*', month=1, day=1, hour=5, id='yearly_event_job')
+#
+#     # スケジューラーが起動していなければ起動する
+#     if not scheduler.running:
+#         try:
+#             scheduler.start()
+#             print("Scheduler started with all jobs.")
+#         except (KeyboardInterrupt, SystemExit):
+#             pass
 # （ーーここまで変更しましたーー）
+
+
 
 @app.route('/force-scrape')
 @login_required
