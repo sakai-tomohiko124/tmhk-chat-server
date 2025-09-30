@@ -2,4 +2,5 @@
 venv/
 __pycache__/
 *.pyc
-database/hkchat.db
+database/tmhk.dbdatabase/
+.env
