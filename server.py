@@ -131,14 +131,17 @@ game_rooms = {}
 
 # スケジューラーの初期化
 scheduler = BackgroundScheduler(daemon=True)
+
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
+        # セッションに is_admin がない、または1でない場合は管理者ではない
+        if not session.get('is_admin'):
             flash('管理者権限が必要です。', 'danger')
-            return redirect(url_for('main_app'))
+            return redirect(url_for('main_app')) # メインアプリのURLにリダイレクト
         return f(*args, **kwargs)
     return decorated_function
+
     
 # --- ヘルパー関数 ---
 def allowed_file(filename):
@@ -428,31 +431,26 @@ def register():
 @app.route('/logout')
 @login_required
 def logout():
-    # ★★★ ここから追加 ★★★
-    if current_user.is_admin:
-        try:
-            db = get_db()
-            title = "管理者ステータス通知"
-            content = f"管理者 '{current_user.username}' がオフラインになりました。"
-            db.execute("INSERT INTO announcements (title, content) VALUES (?, ?)", (title, content))
-            db.commit()
-        except Exception as e:
-            print(f"Failed to create admin offline announcement: {e}")
-    # ★★★ ここまで追加 ★★★
-            
-    # 代理ログイン中であれば元の管理者に戻る
-    if '_impersonating' in session:
-        original_admin_id = session.pop('_impersonating')
-        original_admin = load_user(original_admin_id)
-        if original_admin:
-            logout_user() # 現在のユーザーをログアウト
-            login_user(original_admin) # 元の管理者をログインさせる
-            flash('管理者アカウントに戻りました。', 'info')
+    # もし代理ログイン中なら、管理者アカウントに戻る
+    if session.get('_impersonating'):
+        db = get_db()
+        admin_id = session.get('_admin_user_id')
+        
+        # 念のため、代理ログインセッションをクリア
+        session.clear()
+
+        # 元の管理者として再ログイン
+        admin_user = load_user(admin_id)
+        if admin_user:
+            login_user(admin_user)
+            session['is_admin'] = admin_user.is_admin # セッションも復元
+            flash('管理者アカウントに戻りました。', 'success')
             return redirect(url_for('admin_dashboard'))
 
+    # 通常のログアウト
     logout_user()
     session.clear()
-    flash('ログアウトしました。', 'info')
+    flash('ログアウトしました。')
     return redirect(url_for('login'))
 
 
@@ -531,6 +529,7 @@ def forget_account(user_id):
     flash('アカウントを一覧から削除しました。', 'info')
     return resp
 
+
 @app.route('/login_with_id', methods=['POST'])
 def login_with_id():
     user_id = request.form.get('user_id')
@@ -541,13 +540,16 @@ def login_with_id():
     user_data = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
 
     if user_data and check_password_hash(user_data['password'], password):
+        # データベースから取得した情報で User オブジェクトを正しく生成
         user = load_user(user_data['id'])
+        
         if user.status != 'active':
             flash('このアカウントは現在利用が制限されています。', 'danger')
             return redirect(url_for('login'))
             
+        # Flask-Loginにユーザー情報を登録 (is_admin の情報もここで引き継がれる)
         login_user(user, remember=remember)
-        # ★★★ ここから追加 ★★★
+
         if user.is_admin:
             try:
                 db = get_db()
@@ -555,14 +557,11 @@ def login_with_id():
                 content = f"管理者 '{user.username}' がオンラインになりました。"
                 db.execute("INSERT INTO announcements (title, content) VALUES (?, ?)", (title, content))
                 db.commit()
-                # Socket.IOでリアルタイム通知も可能 (今回はDB記録のみ)
             except Exception as e:
                 print(f"Failed to create admin online announcement: {e}")
 
-        # ログイン成功後、Cookieにこのアカウント情報を保存/更新
         resp = make_response(redirect(url_for('main_app')))
         saved_accounts = json.loads(request.cookies.get('saved_accounts', '{}'))
-        
         account_info = {
             'id': user.id,
             'username': user.username,
@@ -570,105 +569,162 @@ def login_with_id():
             'account_type_name': ACCOUNT_TYPES.get(user.account_type, {}).get('name', user.account_type)
         }
         saved_accounts[str(user.id)] = account_info
+        resp.set_cookie('saved_accounts', json.dumps(saved_accounts), max_age=365*24*60*60)
         
-        resp.set_cookie('saved_accounts', json.dumps(saved_accounts), max_age=365*24*60*60) # 1年間有効
-        
-        # ログイン処理の残りを実行
         update_login_streak(user.id)
         record_activity(user.id, 'login', f'{account_info["account_type_name"]}アカウントでログイン')
-        
         return resp
-
     else:
         flash('パスワードが正しくありません。', 'danger')
         return redirect(url_for('login'))
 
-# --- 管理者専用機能 ---
+@app.route('/login/auth', methods=['POST'])
+def login_auth():
+    account_type = request.form.get('account_type', 'private')
+    custom_account_name = request.form.get('custom_account_name', '').strip()
+    login_id = request.form.get('login_id')
+    password = request.form.get('password')
+    remember = bool(request.form.get('remember'))
+
+    db = get_db()
+    user_data = None
+
+    # 管理者かどうかを is_admin=1 で判定する
+    if login_id == ADMIN_EMAIL:
+        user_data = db.execute("SELECT * FROM users WHERE email = ? AND is_admin = 1", (login_id,)).fetchone()
+    
+    if not user_data:
+        account_type_for_query = custom_account_name if account_type == 'other' and custom_account_name else account_type
+        query = 'SELECT * FROM users WHERE (email = ? OR username = ?) AND account_type = ?'
+        user_data = db.execute(query, (login_id, login_id, account_type_for_query)).fetchone()
+
+    if user_data and check_password_hash(user_data['password'], password):
+        # データベースから取得した情報で User オブジェクトを正しく生成
+        user = load_user(user_data['id'])
+        
+        if user.status != 'active':
+            flash('このアカウントは現在利用が制限されています。', 'danger')
+            return redirect(url_for('login_classic'))
+            
+        # Flask-Loginにユーザー情報を登録 (is_admin の情報もここで引き継がれる)
+        login_user(user, remember=remember)
+        
+        resp = make_response(redirect(url_for('main_app')))
+        saved_accounts = json.loads(request.cookies.get('saved_accounts', '{}'))
+        account_info = {
+            'id': user.id,
+            'username': user.username,
+            'profile_image': user.profile_image,
+            'account_type_name': ACCOUNT_TYPES.get(user.account_type, {}).get('name', user.account_type) if not user.is_admin else 'システム管理者'
+        }
+        saved_accounts[str(user.id)] = account_info
+        resp.set_cookie('saved_accounts', json.dumps(saved_accounts), max_age=365*24*60*60)
+        
+        if user.is_admin:
+            try:
+                title = "管理者ステータス通知"
+                content = f"管理者 '{user.username}' がオンラインになりました。"
+                db.execute("INSERT INTO announcements (title, content) VALUES (?, ?)", (title, content))
+                db.commit()
+            except Exception as e:
+                print(f"Failed to create admin online announcement: {e}")
+        
+        update_login_streak(user.id)
+        record_activity(user.id, 'login', f'{account_info["account_type_name"]}アカウントでログイン')
+        return resp
+    else:
+        flash('ユーザー名/メールアドレスまたはパスワードが正しくありません。', 'danger')
+        return redirect(url_for('login_classic'))
+
+
 
 @app.route('/admin/dashboard')
 @login_required
 @admin_required
 def admin_dashboard():
     db = get_db()
-    # 管理者以外のアクティブなユーザーを全て取得
-    users = db.execute("SELECT id, username, email, account_type FROM users WHERE is_admin = 0 AND status = 'active' ORDER BY id").fetchall()
-    return render_template('admin_dashboard.html', users=users)
+    # is_admin=0 の一般ユーザーのみ表示
+    users = db.execute("SELECT * FROM users WHERE is_admin = 0 ORDER BY id").fetchall()
+    return render_template('admin_dashboard.html', users=users, user_to_edit=None)
 
-@app.route('/admin/edit_user/<int:user_id>', methods=['GET', 'POST'])
+
+@app.route('/admin/user/edit/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def admin_edit_user(user_id):
     db = get_db()
+    
     if request.method == 'POST':
-        # フォームから送信されたデータでユーザー情報を更新
         new_username = request.form['username']
         new_email = request.form['email']
-        new_password = request.form.get('password') # パスワードは任意入力
+        new_password = request.form.get('password')
 
         try:
             if new_password:
-                # 新しいパスワードが入力されていればハッシュ化して更新
-                hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256')
+                hashed_password = generate_password_hash(new_password)
                 db.execute("UPDATE users SET username = ?, email = ?, password = ? WHERE id = ?", 
                            (new_username, new_email, hashed_password, user_id))
             else:
-                # パスワードが空なら、パスワードは変更しない
                 db.execute("UPDATE users SET username = ?, email = ? WHERE id = ?", 
                            (new_username, new_email, user_id))
             db.commit()
             flash(f"ユーザー '{new_username}' の情報を更新しました。", 'success')
             return redirect(url_for('admin_dashboard'))
         except sqlite3.IntegrityError:
+            db.rollback()
             flash('そのユーザー名またはメールアドレスは既に使用されています。', 'danger')
+            user_to_edit = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            users = db.execute("SELECT * FROM users WHERE is_admin = 0 ORDER BY id").fetchall()
+            return render_template('admin_dashboard.html', user_to_edit=user_to_edit, users=users)
     
-    # GETリクエストの場合、編集対象のユーザー情報を取得してフォームに表示
-    user_to_edit = db.execute("SELECT id, username, email FROM users WHERE id = ?", (user_id,)).fetchone()
+    # GETリクエストの場合
+    user_to_edit = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if not user_to_edit:
         flash('編集対象のユーザーが見つかりません。', 'danger')
         return redirect(url_for('admin_dashboard'))
         
-    # 編集ページを表示 (モーダルなどで実装するのが一般的ですが、今回は簡易的に)
-    # ここではダッシュボードに戻り、フラッシュメッセージで編集を促す形にします。
-    # 本来は専用の編集ページ `admin_edit_user.html` を用意します。
-    flash(f"ユーザー '{user_to_edit['username']}' を編集中です。下のフォームから更新してください。", 'info')
-    return render_template('admin_dashboard.html', user_to_edit=user_to_edit, users=db.execute("SELECT id, username, email, account_type FROM users WHERE is_admin = 0 ORDER BY id").fetchall())
+    users = db.execute("SELECT * FROM users WHERE is_admin = 0 ORDER BY id").fetchall()
+    return render_template('admin_dashboard.html', user_to_edit=user_to_edit, users=users)
 
 
-@app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
+@app.route('/admin/user/delete/<int:user_id>', methods=['POST'])
 @login_required
 @admin_required
 def admin_delete_user(user_id):
     db = get_db()
-    user_to_delete = db.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
-    if user_to_delete:
-        # 実際にはデータを削除するのではなく、ステータスを 'deleted' などに変更するのが安全
-        db.execute("UPDATE users SET status = 'deleted', email = NULL WHERE id = ?", (user_id,))
-        # 関連するメッセージなども無効化する処理が必要になる場合がある
+    user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if user:
+        # ステータスを 'inactive' に変更
+        db.execute("UPDATE users SET status = 'inactive' WHERE id = ?", (user_id,))
         db.commit()
-        flash(f"ユーザー '{user_to_delete['username']}' のアカウントを無効化しました。", 'success')
-    else:
-        flash('削除対象のユーザーが見つかりません。', 'danger')
+        flash(f'ユーザー "{user["username"]}" のアカウントを無効化しました。', 'warning')
     return redirect(url_for('admin_dashboard'))
+
 
 @app.route('/admin/impersonate/<int:user_id>')
 @login_required
 @admin_required
 def admin_impersonate(user_id):
-    # 元の管理者IDをセッションに保存
-    session['_impersonating'] = current_user.id
-    
-    # 対象ユーザーとしてログインし直す
-    user_to_impersonate = load_user(user_id)
+    db = get_db()
+    user_to_impersonate = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+
     if user_to_impersonate:
-        logout_user() # 現在の管理者をログアウト
-        login_user(user_to_impersonate) # 対象ユーザーとしてログイン
-        flash(f"'{user_to_impersonate.username}' として代理ログインしました。操作完了後は必ずログアウトしてください。", 'warning')
+        # 元の管理者IDをセッションに退避
+        session['_admin_user_id'] = session['user_id']
+        session['_impersonating'] = True
+
+        # セッション情報を代理ログイン対象ユーザーのもので上書き
+        session['user_id'] = user_to_impersonate['id']
+        session['username'] = user_to_impersonate['username']
+        session['is_admin'] = user_to_impersonate['is_admin']
+        
+        flash(f'"{session["username"]}" として代理ログインしました。', 'info')
+        # 代理ログイン後は、Flask-Loginのcurrent_userを更新するために一度リロードするのが確実
         return redirect(url_for('main_app'))
-    else:
-        flash('代理ログイン対象のユーザーが見つかりません。', 'danger')
-        session.pop('_impersonating', None) # 失敗したのでセッションを元に戻す
-        return redirect(url_for('admin_dashboard'))
-      
+    
+    flash('代理ログインに失敗しました。', 'danger')
+    return redirect(url_for('admin_dashboard'))
+
 # --- タイムライン機能 ---
 @app.route('/timeline')
 @login_required
@@ -716,72 +772,7 @@ def login_classic():
     return render_template('login_classic.html', account_types=ACCOUNT_TYPES, selected_account_type='private')
 
 
-@app.route('/login/auth', methods=['POST'])
-def login_auth():
-    """
-    クラシックログインページからの認証リクエストを処理する。
-    管理者ログインの主要なエントリーポイント。
-    """
-    account_type = request.form.get('account_type', 'private')
-    custom_account_name = request.form.get('custom_account_name', '').strip()
-    login_id = request.form.get('login_id') # email or username
-    password = request.form.get('password')
-    remember = bool(request.form.get('remember'))
 
-    db = get_db()
-    user_data = None
-
-    # ★★★ 管理者ログインの判定 ★★★
-    if login_id == ADMIN_EMAIL:
-        user_data = db.execute("SELECT * FROM users WHERE email = ? AND account_type = 'admin'", (login_id,)).fetchone()
-    
-    # 一般ユーザーのログイン判定
-    if not user_data:
-        account_type_for_query = custom_account_name if account_type == 'other' and custom_account_name else account_type
-        query = 'SELECT * FROM users WHERE (email = ? OR username = ?) AND account_type = ?'
-        user_data = db.execute(query, (login_id, login_id, account_type_for_query)).fetchone()
-
-    if user_data and check_password_hash(user_data['password'], password):
-        # 認証成功時の処理 (login_with_idと共通)
-        user = load_user(user_data['id'])
-        if user.status != 'active':
-            flash('このアカウントは現在利用が制限されています。', 'danger')
-            return redirect(url_for('login_classic'))
-            
-        login_user(user, remember=remember)
-        
-        # Cookieにアカウント情報を保存/更新
-        resp = make_response(redirect(url_for('main_app')))
-        saved_accounts = json.loads(request.cookies.get('saved_accounts', '{}'))
-        
-        account_info = {
-            'id': user.id,
-            'username': user.username,
-            'profile_image': user.profile_image,
-            'account_type_name': ACCOUNT_TYPES.get(user.account_type, {}).get('name', user.account_type) if not user.is_admin else 'システム管理者'
-        }
-        saved_accounts[str(user.id)] = account_info
-        resp.set_cookie('saved_accounts', json.dumps(saved_accounts), max_age=365*24*60*60)
-        
-        # ログイン後処理
-        if user.is_admin:
-            session['is_system_admin'] = True
-            try:
-                title = "管理者ステータス通知"
-                content = f"管理者 '{user.username}' がオンラインになりました。"
-                db.execute("INSERT INTO announcements (title, content) VALUES (?, ?)", (title, content))
-                db.commit()
-            except Exception as e:
-                print(f"Failed to create admin online announcement: {e}")
-        
-        update_login_streak(user.id)
-        record_activity(user.id, 'login', f'{account_info["account_type_name"]}アカウントでログイン')
-        
-        return resp
-    else:
-        flash('ユーザー名/メールアドレスまたはパスワードが正しくありません。', 'danger')
-        return redirect(url_for('login_classic'))
-    
 @app.route('/games')
 @login_required
 def games_hub():

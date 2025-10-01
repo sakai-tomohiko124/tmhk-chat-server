@@ -382,3 +382,5 @@ CREATE TABLE IF NOT EXISTS saved_game_players (
     FOREIGN KEY (game_id) REFERENCES saved_games (id),
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
+
+UPDATE users SET is_admin = 1 WHERE email = 'skytomohiko17@gmail.com';

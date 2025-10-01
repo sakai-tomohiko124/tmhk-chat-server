@@ -133,3 +133,4 @@ zope.event
 zope.interface
 gunicorn
 gevent-websocket
+sqlite3

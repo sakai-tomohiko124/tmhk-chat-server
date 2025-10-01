@@ -1,0 +1,18 @@
+<!-- ナビゲーションバーのどこかに追加 -->
+
+<nav>
+  <a href="/">ホーム</a>
+  {% if session.user_id %}
+    <span>{{ session.username }}さん</span>
+    
+    <!-- 【重要】このif文を追加！ -->
+    {% if session.role == 'admin' %}
+      <a href="/admin">管理者ダッシュボード</a>
+    {% endif %}
+
+    <a href="/logout">ログアウト</a>
+  {% else %}
+    <a href="/login">ログイン</a>
+    <a href="/register">登録</a>
+  {% endif %}
+</nav>
