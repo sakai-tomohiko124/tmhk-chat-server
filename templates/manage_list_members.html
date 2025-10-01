@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>メンバー編集: {{ clist.list_name }}</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container my-4" style="max-width: 600px;">
+    <a href="{{ url_for('custom_lists_page') }}" class="btn btn-secondary mb-4">戻る</a>
+    <h1 class="mb-4">メンバー編集: <span class="text-primary">{{ clist.list_name }}</span></h1>
+    
+    <form action="{{ url_for('update_list_members', list_id=clist.id) }}" method="POST">
+        <div class="card">
+            <div class="card-header">友達を選択</div>
+            <ul class="list-group list-group-flush">
+                {% for friend in friends %}
+                <li class="list-group-item">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="members" value="{{ friend.id }}" id="friend-{{ friend.id }}"
+                               {% if friend.id in member_ids %}checked{% endif %}>
+                        <label class="form-check-label" for="friend-{{ friend.id }}">
+                            {{ friend.username }}
+                        </label>
+                    </div>
+                </li>
+                {% else %}
+                <li class="list-group-item">リストに追加できる友達がいません。</li>
+                {% endfor %}
+            </ul>
+            <div class="card-footer">
+                <button type="submit" class="btn btn-success">メンバーを更新</button>
+            </div>
+        </div>
+    </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プロフィール編集 - TMHKchat</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .profile-img-container { position: relative; width: 120px; height: 120px; margin: 0 auto 20px; }
+        .profile-img-container img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .profile-img-container .upload-label { position: absolute; bottom: 0; right: 0; background: #007bff; color: white; padding: 5px 10px; border-radius: 50%; cursor: pointer; }
+        .profile-img-container input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+<div class="container my-4" style="max-width: 600px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{{ url_for('main_app') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> 戻る</a>
+        <h1 class="mb-0 h2">プロフィール編集</h1>
+        <a href="{{ url_for('view_profile', user_id=current_user.id) }}" class="btn btn-outline-primary">プレビュー</a>
+    </div>
+
+    <form action="{{ url_for('update_settings') }}" method="POST" enctype="multipart/form-data">
+        <div class="card mb-4">
+            <div class="card-header">基本情報</div>
+            <div class="card-body">
+                <div class="profile-img-container">
+                    <img id="image-preview" src="{{ url_for('static', filename='assets/uploads/profile_images/' + user.profile_image if 'user' in user.profile_image else 'assets/images/' + user.profile_image) }}" alt="プロフィール画像">
+                    <label for="profile_image_upload" class="upload-label"><i class="bi bi-camera-fill"></i></label>
+                    <input type="file" id="profile_image_upload" name="profile_image" accept="image/*">
+                </div>
+
+                <div class="form-group">
+                    <label for="username">ユーザー名</label>
+                    <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="status_message">ステータスメッセージ</label>
+                    <input type="text" class="form-control" id="status_message" name="status_message" value="{{ user.status_message or '' }}">
+                </div>
+                <div class="form-group">
+                    <label for="bio">自己紹介</label>
+                    <textarea class="form-control" id="bio" name="bio" rows="3">{{ user.bio or '' }}</textarea>
+                </div>
+                 <div class="form-group">
+                    <label for="birthday">誕生日</label>
+                    <input type="date" class="form-control" id="birthday" name="birthday" value="{{ user.birthday or '' }}">
+                </div>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-block mt-4 mb-4">基本情報を更新する</button>
+    </form>
+
+    <hr>
+
+    <h4 class="mt-4">おすすめYouTube</h4>
+    <div class="card mb-4">
+        <div class="card-body">
+            <form action="{{ url_for('add_youtube_link') }}" method="POST">
+                <div class="form-group">
+                    <label for="youtube_url">YouTube URL</label>
+                    <div class="input-group">
+                        <input type="url" class="form-control" name="url" id="youtube_url" placeholder="https://www.youtube.com/watch?v=..." required>
+                        <div class="input-group-append">
+                            <a href="https://www.youtube.com" target="_blank" class="btn btn-danger"><i class="bi bi-youtube"></i> YouTubeで探す</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="youtube_title">表示名 (任意)</label>
+                    <input type="text" class="form-control" name="title" id="youtube_title" placeholder="例：おすすめの曲">
+                </div>
+                <button type="submit" class="btn btn-success">追加</button>
+            </form>
+        </div>
+        {% if youtube_links %}
+        <ul class="list-group list-group-flush">
+            {% for link in youtube_links %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{{ link.url }}" target="_blank">{{ link.title or link.url }}</a>
+                </div>
+                <a href="{{ url_for('delete_youtube_link', link_id=link.id) }}" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+document.getElementById('profile_image_upload').addEventListener('change', function(event) {
+    if (event.target.files && event.target.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('image-preview').setAttribute('src', e.target.result);
+        }
+        reader.readAsDataURL(event.target.files[0]);
+    }
+});
+</script>
+</body>
+</html>

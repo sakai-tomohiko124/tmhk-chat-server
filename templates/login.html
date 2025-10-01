@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - TMHKchat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .account-selector-container {
+            max-width: 450px;
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+            text-align: center;
+        }
+        .account-card {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .account-card:hover {
+            background-color: #f8f9fa;
+            border-color: #dee2e6;
+        }
+        .account-card img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+        .account-card .info {
+            text-align: left;
+        }
+        .account-card .info .username {
+            font-weight: bold;
+            margin-bottom: 0;
+        }
+        .account-card .info .account-type {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .remove-account-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            border: none;
+            background: none;
+            color: #adb5bd;
+            font-size: 1.2em;
+        }
+        .password-modal-body {
+            text-align: left;
+        }
+        .password-toggle-container {
+            position: relative;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="account-selector-container">
+        <h2 class="mb-2">TMHKchat</h2>
+        <h4 class="mb-4 fw-normal">どのアカウントでログインしますか？</h4>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div id="account-list">
+            {% for account in saved_accounts %}
+            <div class="account-card" data-bs-toggle="modal" data-bs-target="#passwordModal" data-user-id="{{ account.id }}" data-username="{{ account.username }}">
+                <img src="{{ url_for('static', filename='assets/uploads/profile_images/' + account.profile_image if 'user' in account.profile_image else 'assets/images/' + account.profile_image) }}" alt="avatar">
+                <div class="info">
+                    <p class="username">{{ account.username }}</p>
+                    <small class="account-type text-muted">{{ account.account_type_name }} アカウント</small>
+                </div>
+                <a href="{{ url_for('forget_account', user_id=account.id) }}" class="remove-account-btn" title="このアカウントを一覧から削除">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="d-grid gap-2 mt-4">
+            <!-- ★★★ このリンクを追加 ★★★ -->
+            <a href="{{ url_for('login_classic') }}" class="btn btn-primary">
+                <i class="bi bi-person-check-fill"></i> 別のアカウントでログイン
+            </a>
+            <a href="{{ url_for('register') }}" class="btn btn-outline-primary">
+                <i class="bi bi-person-plus-fill"></i> 新規アカウント作成
+            </a>
+        </div>
+    </div>
+
+    <!-- パスワード入力モーダル -->
+    <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="passwordModalLabel">パスワードを入力</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ url_for('login_with_id') }}">
+                    <div class="modal-body password-modal-body">
+                        <p><strong><span id="modal-username"></span></strong>としてログインします。</p>
+                        <input type="hidden" id="modal-user-id" name="user_id">
+                        <div class="mb-3">
+                            <label for="password" class="form-label">パスワード</label>
+                            <div class="password-toggle-container">
+                                <input type="password" class="form-control" id="password" name="password" required>
+                                <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="remember" name="remember" checked>
+                            <label class="form-check-label" for="remember">ログイン状態を保持する</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                        <button type="submit" class="btn btn-primary">ログイン</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const passwordModal = document.getElementById('passwordModal');
+        passwordModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const userId = button.getAttribute('data-user-id');
+            const username = button.getAttribute('data-username');
+
+            const modalUsername = passwordModal.querySelector('#modal-username');
+            const modalUserIdInput = passwordModal.querySelector('#modal-user-id');
+            
+            modalUsername.textContent = username;
+            modalUserIdInput.value = userId;
+        });
+
+        function togglePassword(inputId) {
+            const passwordInput = document.getElementById(inputId);
+            const toggleIcon = passwordInput.nextElementSibling.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'bi bi-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'bi bi-eye';
+            }
+        }
+    </script>
+</body>
+</html>

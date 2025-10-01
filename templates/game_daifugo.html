@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大富豪 - TMHKchat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body { background-color: #f0f0f0; }
+        .game-board { background-color: #006400; color: white; padding: 20px; border-radius: 10px; max-width: 800px; margin: auto; }
+        .player-area { border: 2px solid #fff; border-radius: 8px; padding: 10px; margin-bottom: 15px; min-height: 120px; background-color: rgba(255,255,255,0.1); }
+        .player-area.current-turn { box-shadow: 0 0 15px #ffc107; border-color: #ffc107; }
+        .my-hand .card { display: inline-block; cursor: pointer; border: 2px solid #333; border-radius: 5px; padding: 10px 5px; margin: 2px; background-color: #fff; color: #000; user-select: none; font-weight: bold; min-width: 40px; text-align: center; }
+        .my-hand .card.selected { border-color: #ffc107; transform: translateY(-10px); }
+        .field { min-height: 100px; background-color: rgba(0,0,0,0.2); border-radius: 10px; display: flex; justify-content: center; align-items: center; padding: 10px; flex-wrap: wrap; }
+        .field .card { display: inline-block; border: 2px solid #333; border-radius: 5px; padding: 10px 5px; margin: 2px; background-color: #fff; color: #000; font-weight: bold; min-width: 40px; text-align: center; }
+        .game-log { height: 100px; overflow-y: scroll; background: #fff; color: #000; padding: 8px; border-radius: 5px; font-size: 0.9em; }
+        .action-buttons button { margin: 5px; }
+    </style>
+</head>
+<body>
+<div class="container my-4">
+    <div class="game-board">
+        <h2 class="text-center">大富豪 <small>(ルームID: {{ room_id }})</small></h2>
+        <a href="{{ url_for('games_hub') }}" class="btn btn-sm btn-light mb-3"><i class="bi bi-arrow-left"></i> ゲームハブに戻る</a>
+        <button id="save-game-btn" class="btn btn-sm btn-warning mb-3"><i class="bi bi-pause-circle"></i> 中断して退出</button>
+        {% if room.host == current_user.id and room.status == 'waiting' %}
+        <button id="start-game-btn" class="btn btn-success mb-3">ゲーム開始</button>
+        {% endif %}
+
+        <div id="opponents-area" class="row text-center"></div>
+        <div id="field" class="field my-3"><p class="mb-0">ゲーム待機中...</p></div>
+
+        <div id="player-area-{{ current_user.id }}" class="player-area my-area">
+            <h6>{{ current_user.username }} (あなた) <span id="my-card-count" class="badge badge-light"></span></h6>
+            <div id="my-hand" class="my-hand"></div>
+            <div class="action-buttons mt-2">
+                <button id="play-btn" class="btn btn-warning" disabled>選択したカードを出す</button>
+                <button id="pass-btn" class="btn btn-secondary" disabled>パス</button>
+            </div>
+        </div>
+        
+        <h6>ゲームログ</h6>
+        <div id="game-log" class="game-log"></div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const socket = io();
+    const roomId = "{{ room_id }}";
+    const currentUserId = {{ current_user.id }};
+
+    const myHandDiv = document.getElementById('my-hand');
+    const opponentsArea = document.getElementById('opponents-area');
+    const fieldDiv = document.getElementById('field');
+    const gameLog = document.getElementById('game-log');
+    const playBtn = document.getElementById('play-btn');
+    const passBtn = document.getElementById('pass-btn');
+    const startGameBtn = document.getElementById('start-game-btn');
+    const saveGameBtn = document.getElementById('save-game-btn');
+
+    if(startGameBtn) {
+        startGameBtn.addEventListener('click', () => {
+            socket.emit('start_game', { room_id: roomId });
+            startGameBtn.style.display = 'none';
+        });
+    }
+
+    myHandDiv.addEventListener('click', (event) => {
+        if (event.target.classList.contains('card')) {
+            event.target.classList.toggle('selected');
+        }
+    });
+
+    playBtn.addEventListener('click', () => {
+        const selectedCards = Array.from(document.querySelectorAll('.card.selected')).map(c => ({ suit: c.dataset.suit, rank: c.dataset.rank }));
+        if (selectedCards.length > 0) {
+            socket.emit('play_cards', { room_id: roomId, cards: selectedCards });
+        }
+    });
+
+    passBtn.addEventListener('click', () => socket.emit('pass_turn', { room_id: roomId }));
+    
+    if (saveGameBtn) {
+        saveGameBtn.addEventListener('click', () => {
+            if (confirm('ゲームを中断して退出しますか？進行状況は保存されます。')) {
+                socket.emit('save_game', { room_id: roomId });
+            }
+        });
+    }
+
+    socket.on('connect', () => socket.emit('join_game', { room_id: roomId }));
+    socket.on('game_started', data => renderMyHand(data.your_hand));
+    socket.on('update_game_state', data => {
+        renderOpponents(data.players);
+        renderField(data.field);
+        updateTurnIndicator(data.current_turn);
+        if (data.your_hand) renderMyHand(data.your_hand);
+        const myPlayerInfo = data.players.find(p => p.id === currentUserId);
+        if (myPlayerInfo) document.getElementById('my-card-count').innerText = myPlayerInfo.card_count + '枚';
+    });
+    
+    socket.on('invalid_move', data => alert(data.message));
+    socket.on('log_message', data => addLogMessage(data.message));
+    socket.on('game_over', data => {
+        alert(`ゲーム終了！勝者: ${data.winner}`);
+        playBtn.disabled = true;
+        passBtn.disabled = true;
+    });
+    socket.on('game_saved_and_closed', data => {
+        alert(data.message);
+        window.location.href = "{{ url_for('games_hub') }}";
+    });
+
+    function addLogMessage(message) {
+        const p = document.createElement('p');
+        p.className = 'mb-1';
+        p.textContent = message;
+        gameLog.appendChild(p);
+        gameLog.scrollTop = gameLog.scrollHeight;
+    }
+
+    function renderMyHand(hand) {
+        myHandDiv.innerHTML = '';
+        hand.forEach(card => {
+            const cardDiv = document.createElement('div');
+            cardDiv.classList.add('card');
+            cardDiv.textContent = `${card.suit}${card.rank}`;
+            cardDiv.dataset.suit = card.suit;
+            cardDiv.dataset.rank = card.rank;
+            myHandDiv.appendChild(cardDiv);
+        });
+    }
+
+    function renderOpponents(players) {
+        opponentsArea.innerHTML = '';
+        players.forEach(p => {
+            if (p.id !== currentUserId) {
+                const opponentCol = document.createElement('div');
+                opponentCol.className = 'col';
+                opponentCol.innerHTML = `
+                    <div id="player-area-${p.id}" class="player-area opponent-area">
+                        <h6>${p.name}</h6>
+                        <div><i class="bi bi-person-badge"></i> <span>残り: ${p.card_count}枚</span></div>
+                    </div>`;
+                opponentsArea.appendChild(opponentCol);
+            }
+        });
+    }
+
+    function renderField(fieldCards) {
+        fieldDiv.innerHTML = '';
+        if (!fieldCards || fieldCards.length === 0) {
+            fieldDiv.innerHTML = '<p class="mb-0">カードが出されていません</p>';
+        } else {
+            fieldCards.forEach(card => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card';
+                cardDiv.textContent = `${card.suit}${card.rank}`;
+                fieldDiv.appendChild(cardDiv);
+            });
+        }
+    }
+
+    function updateTurnIndicator(currentTurnId) {
+        document.querySelectorAll('.player-area').forEach(area => area.classList.remove('current-turn'));
+        const turnArea = document.getElementById(`player-area-${currentTurnId}`);
+        if (turnArea) turnArea.classList.add('current-turn');
+        
+        const isMyTurn = currentTurnId === currentUserId;
+        playBtn.disabled = !isMyTurn;
+        passBtn.disabled = !isMyTurn;
+    }
+});
+</script>
+</body>
+</html>

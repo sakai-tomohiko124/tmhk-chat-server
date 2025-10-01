@@ -52,21 +52,25 @@ CREATE TABLE IF NOT EXISTS messages (
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
--- private_messages テーブル: 個人チャットのメッセージ
-CREATE TABLE IF NOT EXISTS private_messages (
+
+-- private_messages テーブル (1対1チャット、キープメモ、AIチャット用)
+CREATE TABLE private_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sender_id INTEGER NOT NULL,
     recipient_id INTEGER NOT NULL,
     content TEXT NOT NULL,
+    message_type TEXT DEFAULT 'text', -- 'text', 'voice', 'image'などを格納
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_from_ai INTEGER DEFAULT 0,
     is_read INTEGER DEFAULT 0,
-    reactions TEXT, -- JSON形式
-    is_deleted INTEGER DEFAULT 0,
-    updated_at TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT 0,
+    updated_at DATETIME,
+    reactions TEXT,
     FOREIGN KEY (sender_id) REFERENCES users (id),
     FOREIGN KEY (recipient_id) REFERENCES users (id)
 );
+
+
 
 -- blocked_users テーブル: ユーザーがブロックした相手
 CREATE TABLE IF NOT EXISTS blocked_users (

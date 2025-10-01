@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ババ抜き - TMHKchat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .game-board { background-color: #2a4; color: white; padding: 20px; border-radius: 10px; }
+        .player-area { border: 2px solid #fff; border-radius: 8px; padding: 10px; margin-bottom: 15px; min-height: 120px; cursor: default; }
+        .player-area.is-turn { border-color: #ffc107; box-shadow: 0 0 10px #ffc107; }
+        .player-area.can-draw { cursor: pointer; background-color: rgba(255, 255, 0, 0.2); }
+        .my-hand .card { display: inline-block; border: 2px solid #333; border-radius: 5px; padding: 10px 5px; margin: 2px; background-color: #fff; color: #000; font-weight: bold; min-width: 40px; text-align: center; }
+        .card-back { font-size: 2.5rem; }
+    </style>
+</head>
+<body>
+<div class="container my-4">
+    <div class="game-board">
+        <h2 class="text-center">ババ抜き <small>(ルームID: {{ room_id }})</small></h2>
+        <a href="{{ url_for('games_hub') }}" class="btn btn-sm btn-light mb-3"><i class="bi bi-arrow-left"></i> 戻る</a>
+        <button id="save-game-btn" class="btn btn-sm btn-warning mb-3"><i class="bi bi-pause-circle"></i> 中断して退出</button>
+        {% if room.host == current_user.id and room.status == 'waiting' %}
+        <button id="start-game-btn" class="btn btn-success mb-3">ゲーム開始</button>
+        {% endif %}
+        
+        <div id="players-area" class="row text-center"></div>
+        <div id="game-log" class="bg-light text-dark p-2 rounded" style="height: 100px; overflow-y: scroll;"></div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const socket = io();
+    const roomId = "{{ room_id }}";
+    const currentUserId = {{ current_user.id }};
+    const playersArea = document.getElementById('players-area');
+    const gameLog = document.getElementById('game-log');
+    const startGameBtn = document.getElementById('start-game-btn');
+    const saveGameBtn = document.getElementById('save-game-btn');
+    let turnOrder = [];
+
+    if(startGameBtn) {
+        startGameBtn.addEventListener('click', () => {
+            socket.emit('start_game', { room_id: roomId });
+            startGameBtn.style.display = 'none';
+        });
+    }
+    
+    if (saveGameBtn) {
+        saveGameBtn.addEventListener('click', () => {
+            if (confirm('ゲームを中断して退出しますか？進行状況は保存されます。')) {
+                socket.emit('save_game', { room_id: roomId });
+            }
+        });
+    }
+
+    function addLog(message) {
+        gameLog.innerHTML += `<p class="mb-1">${message}</p>`;
+        gameLog.scrollTop = gameLog.scrollHeight;
+    }
+
+    function renderPlayers(players, currentTurnId) {
+        playersArea.innerHTML = '';
+        const myIndex = turnOrder.indexOf(currentUserId);
+        const targetPlayerId = myIndex !== -1 ? turnOrder[(myIndex - 1 + turnOrder.length) % turnOrder.length] : null;
+
+        players.forEach(p => {
+            const isMyTurn = currentTurnId === currentUserId;
+            const isTarget = isMyTurn && p.id === targetPlayerId;
+            const playerDiv = document.createElement('div');
+            playerDiv.className = 'col-md-6';
+            playerDiv.innerHTML = `
+                <div id="player-${p.id}" class="player-area ${currentTurnId === p.id ? 'is-turn' : ''} ${isTarget ? 'can-draw' : ''}" data-player-id="${p.id}">
+                    <h6>${p.name} ${p.id === currentUserId ? '(あなた)' : ''}</h6>
+                    ${p.id === currentUserId ? `<div class="my-hand" id="my-hand"></div>` : `<div class="card-back"><i class="bi bi-card-heading"></i> x ${p.card_count}</div>`}
+                </div>`;
+            playersArea.appendChild(playerDiv);
+        });
+
+        document.querySelectorAll('.can-draw').forEach(el => {
+            el.addEventListener('click', function() {
+                socket.emit('draw_card', { room_id: roomId, target_player_id: this.dataset.playerId });
+            });
+        });
+    }
+
+    function renderMyHand(hand) {
+        const myHandDiv = document.getElementById('my-hand');
+        if (!myHandDiv) return;
+        myHandDiv.innerHTML = '';
+        hand.forEach(card => {
+            myHandDiv.innerHTML += `<div class="card">${card.rank === 'Joker' ? 'JOKER' : card.suit+card.rank}</div>`;
+        });
+    }
+
+    socket.on('connect', () => socket.emit('join_game', { room_id: roomId }));
+    socket.on('log_message', data => addLog(data.message));
+    socket.on('game_started', data => renderMyHand(data.your_hand));
+    socket.on('update_hand', data => renderMyHand(data.hand));
+    socket.on('game_over', data => alert(`ゲーム終了！ ${data.loser}さんの負けです。`));
+    socket.on('game_saved_and_closed', data => {
+        alert(data.message);
+        window.location.href = "{{ url_for('games_hub') }}";
+    });
+    socket.on('update_game_state', data => {
+        turnOrder = data.players.filter(p => p.card_count > 0).map(p => p.id);
+        renderPlayers(data.players, data.current_turn);
+        const myPlayer = data.players.find(p => p.id === currentUserId);
+        if (myPlayer) {
+             const myHandDiv = document.getElementById('my-hand');
+             if(myHandDiv){
+                myHandDiv.parentElement.querySelector('h6').innerHTML = `${myPlayer.name} (あなた) - 残り${myPlayer.card_count}枚`;
+             }
+        }
+    });
+});
+</script>
+</body>
+</html>

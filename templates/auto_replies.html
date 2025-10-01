@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自動応答メッセージ設定</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+<div class="container my-4" style="max-width: 600px;">
+    <a href="{{ url_for('main_app') }}" class="btn btn-secondary mb-4"><i class="bi bi-arrow-left"></i> 戻る</a>
+    <h1 class="mb-4">自動応答メッセージ設定</h1>
+
+    <div class="card mb-4">
+        <div class="card-header">新規追加</div>
+        <div class="card-body">
+            <form action="{{ url_for('add_auto_reply') }}" method="POST">
+                <div class="form-group">
+                    <label for="keyword">キーワード</label>
+                    <input type="text" name="keyword" class="form-control" placeholder="この言葉が含まれていたら..." required>
+                </div>
+                <div class="form-group">
+                    <label for="response_message">応答メッセージ</label>
+                    <textarea name="response_message" class="form-control" rows="2" placeholder="このメッセージを返す" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">追加する</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">登録済みリスト</div>
+        <ul class="list-group list-group-flush">
+            {% for item in items %}
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">キーワード</small>
+                        <p class="font-weight-bold mb-1">{{ item.keyword }}</p>
+                        <small class="text-muted">応答メッセージ</small>
+                        <p class="mb-0">{{ item.response_message }}</p>
+                    </div>
+                    <a href="{{ url_for('delete_auto_reply', item_id=item.id) }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                </div>
+            </li>
+            {% else %}
+            <li class="list-group-item">登録されている自動応答メッセージはありません。</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+</body>
+</html>

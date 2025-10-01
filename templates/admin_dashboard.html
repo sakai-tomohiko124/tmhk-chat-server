@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理者ダッシュボード - TMHKchat</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+<div class="container my-4">
+    <a href="{{ url_for('main_app') }}" class="btn btn-secondary mb-4"><i class="bi bi-arrow-left"></i> 戻る</a>
+
+    {% if session['_impersonating'] %}
+    <div class="alert alert-warning">
+        現在、代理ログイン中です。操作完了後は <a href="{{ url_for('logout') }}" class="alert-link">ログアウト</a> して管理者アカウントに戻ってください。
+    </div>
+    {% endif %}
+
+    <h1 class="mb-4"><i class="bi bi-shield-lock-fill"></i> 管理者ダッシュボード</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- ユーザー編集フォーム (GETリクエストで編集対象が渡された場合のみ表示) -->
+    {% if user_to_edit %}
+    <div class="card mb-5 border-primary">
+        <div class="card-header bg-primary text-white">
+            ユーザー情報の編集: {{ user_to_edit.username }}
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('admin_edit_user', user_id=user_to_edit.id) }}" method="POST">
+                <div class="form-group">
+                    <label for="username">ユーザー名</label>
+                    <input type="text" class="form-control" id="username" name="username" value="{{ user_to_edit.username }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">メールアドレス</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ user_to_edit.email }}">
+                </div>
+                <div class="form-group">
+                    <label for="password">新しいパスワード (変更する場合のみ入力)</label>
+                    <input type="password" class="form-control" id="password" name="password" placeholder="変更しない場合は空のまま">
+                </div>
+                <button type="submit" class="btn btn-primary">更新</button>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">キャンセル</a>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ユーザー一覧テーブル -->
+    <div class="card">
+        <div class="card-header">ユーザー管理</div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>ユーザー名</th>
+                        <th>メールアドレス</th>
+                        <th>アカウント種別</th>
+                        <th style="width: 280px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email or '(未設定)' }}</td>
+                        <td>{{ user.account_type }}</td>
+                        <td>
+                            <!-- 編集ボタン -->
+                            <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil-square"></i> 編集</a>
+                            
+                            <!-- 代理ログインボタン -->
+                            <a href="{{ url_for('admin_impersonate', user_id=user.id) }}" class="btn btn-sm btn-outline-warning" onclick="return confirm('\'{{ user.username }}\' として代理ログインします。よろしいですか？')"><i class="bi bi-person-badge"></i> 代理ログイン</a>
+                            
+                            <!-- 削除ボタン -->
+                            <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('本当にユーザー \'{{ user.username }}\' のアカウントを無効化しますか？この操作は元に戻せません。')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i> 削除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">管理対象のユーザーがいません。</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>

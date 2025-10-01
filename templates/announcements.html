@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運営からのお知らせ - TMHKchat</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+<div class="container my-4">
+    <a href="{{ url_for('main_app') }}" class="btn btn-secondary mb-4"><i class="bi bi-arrow-left"></i> 戻る</a>
+    <h1 class="mb-4"><i class="bi bi-megaphone-fill"></i> 運営からのお知らせ</h1>
+
+    <div id="announcements-accordion">
+    {% for announcement in announcements %}
+        <div class="card mb-2">
+            <div class="card-header" id="heading-{{ announcement.id }}">
+                <h5 class="mb-0">
+                    <button class="btn btn-link" data-toggle="collapse" data-target="#collapse-{{ announcement.id }}" aria-expanded="true" aria-controls="collapse-{{ announcement.id }}">
+                        {{ announcement.title }}
+                    </button>
+                    <small class="text-muted float-right">{{ announcement.created_at | format_datetime('%m月%d日 %H:%M') }}</small>
+                </h5>
+            </div>
+
+            <div id="collapse-{{ announcement.id }}" class="collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading-{{ announcement.id }}" data-parent="#announcements-accordion">
+                <div class="card-body">
+                    {{ announcement.content | nl2br }}
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">現在、お知らせはありません。</div>
+    {% endfor %}
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
