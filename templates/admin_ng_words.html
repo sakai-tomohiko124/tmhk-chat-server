@@ -1,0 +1,35 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="container py-4">
+  <h3>NGワード管理</h3>
+  <div class="mb-3 small text-muted">管理者はリアルタイムに NG ワードを追加・削除できます。変更後は即時反映されます。</div>
+  <div class="card mb-3">
+    <div class="card-body">
+      <form id="ng-add-form" class="form-inline" onsubmit="return false;">
+        <div class="form-group mr-2 mb-2">
+          <input type="text" class="form-control" id="ng-new-word" placeholder="追加するワード" required>
+        </div>
+        <button class="btn btn-primary mb-2" id="btn-add">追加</button>
+        <button class="btn btn-secondary mb-2 ml-2" id="btn-reload">ファイル再読込</button>
+      </form>
+      <div id="ng-feedback" class="mt-2"></div>
+    </div>
+  </div>
+  <h5>現在のNGワード (<span id="ng-count">0</span>)</h5>
+  <ul id="ng-list" class="list-group mb-4" style="max-width:480px;"></ul>
+  <a href="{{ url_for('main_app') }}" class="btn btn-light">戻る</a>
+</div>
+<script>
+(function(){
+  function msg(html, cls='info'){ const box=document.getElementById('ng-feedback'); box.innerHTML='<div class="alert alert-'+(cls==='error'?'danger':cls)+' py-1 mb-2">'+html+'</div>'; }
+  async function fetchList(){
+    const r= await fetch('/api/admin/ng_words'); const j= await r.json(); if(!j.success){ msg('取得失敗','error'); return; }
+    const list=j.data.words||[]; const ul=document.getElementById('ng-list'); ul.innerHTML=''; list.forEach(w=>{ const li=document.createElement('li'); li.className='list-group-item d-flex justify-content-between align-items-center py-1'; li.innerHTML='<span>'+escapeHtml(w)+'</span><button class="btn btn-sm btn-outline-danger" data-del="'+encodeURIComponent(w)+'">削除</button>'; ul.appendChild(li); }); document.getElementById('ng-count').textContent=list.length; }
+  function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[c])); }
+  document.getElementById('btn-add').addEventListener('click', async ()=>{ const w=document.getElementById('ng-new-word').value.trim(); if(!w) return; const r= await fetch('/api/admin/ng_words',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:w})}); const j=await r.json(); if(j.success){ msg('追加しました'); document.getElementById('ng-new-word').value=''; fetchList(); }else{ msg('追加失敗: '+(j.error||''),'error'); }});
+  document.getElementById('btn-reload').addEventListener('click', async ()=>{ const r= await fetch('/api/admin/ng_words/reload',{method:'POST'}); const j=await r.json(); if(j.success){ msg('再読込完了 count='+j.data.count); fetchList(); } else { msg('再読込失敗','error'); }});
+  document.getElementById('ng-list').addEventListener('click', async e=>{ const btn=e.target.closest('[data-del]'); if(!btn) return; const w=decodeURIComponent(btn.getAttribute('data-del')); if(!confirm('削除: '+w+' ?')) return; const r= await fetch('/api/admin/ng_words/'+encodeURIComponent(w),{method:'DELETE'}); const j=await r.json(); if(j.success){ msg('削除しました'); fetchList(); } else { msg('削除失敗: '+(j.error||''),'error'); }});
+  fetchList();
+})();
+</script>
+{% endblock %}

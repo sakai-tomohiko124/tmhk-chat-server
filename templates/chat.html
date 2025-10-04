@@ -21,13 +21,28 @@
         .message-content { padding-bottom: 15px; }
         .message-meta { position: absolute; bottom: 4px; right: 8px; font-size: 0.7em; color: #999; }
         .chat-form { flex-shrink: 0; background-color: #f0f0f0; }
+    .edit-badge { font-size: 0.65em; color: #888; margin-left:4px; }
+    .pin-indicator { position:absolute; top:2px; right:6px; color:#c9a300; font-size:0.9em; }
+    .reply-ref { font-size:0.7em; padding:2px 6px; background:#eee; border-left:3px solid #888; margin-bottom:4px; border-radius:4px; }
+    .reaction-bar { margin-top:2px; font-size:0.75em; display:flex; gap:4px; flex-wrap:wrap; }
+    .reaction-item { background:#fff; border:1px solid #ddd; padding:0 4px; border-radius:12px; cursor:pointer; }
+    .message-actions-pop { position:absolute; top:-4px; left:0; transform:translateY(-100%); background:#333; color:#fff; padding:4px 6px; border-radius:4px; display:flex; gap:6px; font-size:0.75em; }
+    .message-actions-pop button { background:none; border:none; color:#fff; cursor:pointer; }
+    .pinned-list { position:fixed; top:60px; right:8px; width:220px; max-height:40%; overflow:auto; background:#fff; border:1px solid #ccc; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.2); padding:6px; }
+    .pinned-list h6 { font-size:0.8em; margin:2px 0 4px; }
+    .link-preview-card { border:1px solid #ccc; background:#fafafa; border-radius:6px; padding:6px; font-size:0.75em; margin-top:4px; display:flex; gap:8px; text-decoration:none; color:#222; }
+    .link-preview-card:hover { background:#f0f0f0; text-decoration:none; }
+    .link-preview-thumb { width:48px; height:48px; object-fit:cover; border-radius:4px; flex-shrink:0; background:#ddd; }
+    .link-preview-meta { overflow:hidden; }
+    .link-preview-title { font-weight:600; font-size:0.75em; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+    .link-preview-desc { font-size:0.65em; color:#555; max-height:2.4em; overflow:hidden; }
         
         .voice-message-player { width: 250px; }
         .recording-ui { display: none; align-items: center; justify-content: space-between; width: 100%; padding: 5px; }
         .recording-indicator { color: #dc3545; }
     </style>
 </head>
-<body>
+<body data-opponent-id="{{ opponent.id }}" data-current-user-id="{{ current_user.id }}">
     <header class="chat-header p-2 border-bottom d-flex justify-content-between align-items-center">
         <a href="{{ url_for('main_app') }}" class="btn btn-link text-white"><i class="bi bi-arrow-left"></i></a>
         <strong class="ml-2">{{ opponent.username }}</strong>
@@ -39,17 +54,42 @@
         {% for message in messages %}
             <div id="message-row-{{ message.id }}" class="message-row {{ 'my-message-row' if message.sender_id == current_user.id else 'opponent-message-row' }}">
                 <div class="message-bubble" data-message-id="{{ message.id }}" data-sender-id="{{ message.sender_id }}">
+                    {% if message.is_pinned %}<span class="pin-indicator"><i class="bi bi-pin-angle-fill"></i></span>{% endif %}
+                    {% if message.reply_to_id %}<div class="reply-ref">返信: #{{ message.reply_to_id }}</div>{% endif %}
                     <div class="message-content">
                         {% if message.message_type == 'voice' %}
                             <audio controls class="voice-message-player">
                                 <source src="{{ url_for('static', filename='assets/uploads/' + message.content) }}" type="audio/webm">
                                 お使いのブラウザは音声をサポートしていません。
                             </audio>
+                        {% elif message.message_type in ['image','gif','stamp'] %}
+                            {% set mc = message.content %}
+                            {% if not mc.startswith('http://') and not mc.startswith('https://') and not mc.startswith('/static/') %}
+                                {% if message.message_type == 'stamp' %}
+                                    {% set mc = '/static/assets/uploads/stamps/' + mc %}
+                                {% else %}
+                                    {% set mc = '/static/assets/uploads/' + mc %}
+                                {% endif %}
+                            {% endif %}
+                            <img src="{{ mc }}" alt="media" style="max-width:200px;border-radius:4px;" loading="lazy" data-full="{{ mc }}">
                         {% else %}
                             {{ message.content | nl2br }}
                         {% endif %}
+                        {% if message.link_preview_json and message.message_type == 'text' %}
+                            {% set lp = message.link_preview_json | safe | loads %}
+                            {% if lp.url %}
+                            <a class="link-preview-card" href="{{ lp.url }}" target="_blank" rel="noopener noreferrer">
+                                {% if lp.image %}<img src="{{ lp.image }}" class="link-preview-thumb" alt="preview">{% endif %}
+                                <div class="link-preview-meta">
+                                    <div class="link-preview-title">{{ lp.title or lp.url }}</div>
+                                    {% if lp.description %}<div class="link-preview-desc">{{ lp.description }}</div>{% endif %}
+                                </div>
+                            </a>
+                            {% endif %}
+                        {% endif %}
                     </div>
-                    <div class="message-meta">{{ message.timestamp | format_datetime('%H:%M') }}</div>
+                    <div class="message-meta">{{ message.timestamp | format_datetime('%H:%M') }}{% if message.edited_at %}<span class="edit-badge">(編集)</span>{% endif %}</div>
+                    <div class="reaction-bar" id="reaction-bar-{{ message.id }}"></div>
                 </div>
             </div>
         {% endfor %}
@@ -72,15 +112,65 @@
             <button class="btn btn-danger btn-sm" type="button" id="stop-recording-button">送信</button>
             <button class="btn btn-secondary btn-sm" type="button" id="cancel-recording-button">キャンセル</button>
         </div>
+        <div class="mt-2 d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="btn-image">画像</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="btn-gif">GIF</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="btn-stamp">スタンプ</button>
+            <input type="file" id="image-file" accept="image/*" class="d-none">
+            <input type="file" id="stamp-file" accept="image/*" class="d-none">
+        </div>
     </div>
+
+<!-- Image Preview Modal -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content bg-dark">
+      <div class="modal-body p-1 text-center">
+        <img id="preview-full-image" src="" style="max-width:100%;max-height:70vh;" alt="preview">
+      </div>
+      <div class="modal-footer p-2 justify-content-between">
+        <small class="text-light" id="preview-meta"></small>
+        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stamp Picker Modal -->
+<div class="modal fade" id="stampPickerModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-sm modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header py-2"><h6 class="m-0">スタンプ</h6><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+      <div class="modal-body p-2" id="stamp-grid" style="display:grid;grid-template-columns:repeat(auto-fill,50px);gap:4px;min-height:120px;"></div>
+      <div class="modal-footer py-1"><button type="button" class="btn btn-sm btn-outline-primary" id="reload-stamps">再読込</button></div>
+    </div>
+  </div>
+</div>
+<!-- GIF Search Modal -->
+<div class="modal fade" id="gifSearchModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <input type="text" id="gif-query" class="form-control form-control-sm mr-2" placeholder="GIF検索語">
+        <button class="btn btn-sm btn-primary" id="gif-do-search">検索</button>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body p-2" id="gif-results" style="display:grid;grid-template-columns:repeat(auto-fill,120px);gap:6px;min-height:140px;"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const socket = io();
     const chatContainerWrapper = document.getElementById('chat-container-wrapper');
     const chatContainer = document.getElementById('chat-container');
-    const opponentId = {{ opponent.id }};
-    const currentUserId = {{ current_user.id }};
+    const opponentId = parseInt(document.body.dataset.opponentId,10);
+    const currentUserId = parseInt(document.body.dataset.currentUserId,10);
+    window.opponentId = opponentId;
+    window.currentUserId = currentUserId;
+    function escapeHtml(t){return (t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));}
+    const pinnedPanelId = 'pinned-messages-panel';
 
     const messageForm = document.getElementById('message-form');
     const messageInput = document.getElementById('message-input');
@@ -91,6 +181,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelRecordingButton = document.getElementById('cancel-recording-button');
     const recordingTimer = document.getElementById('recording-timer');
     
+    const btnImage = document.getElementById('btn-image');
+    const btnGif = document.getElementById('btn-gif');
+    const btnStamp = document.getElementById('btn-stamp');
+    const imageInput = document.getElementById('image-file');
+    const stampInput = document.getElementById('stamp-file');
+
     let mediaRecorder;
     let audioChunks = [];
     let timerInterval;
@@ -185,6 +281,109 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    btnImage.addEventListener('click', ()=> imageInput.click());
+        imageInput.addEventListener('change', async ()=>{
+    const ps = parseInt(document.body.getAttribute('data-penalty-stage')||'0');
+    if(ps >=5){
+        alert('画像アップロードはペナルティ (stage '+ps+') により制限されています。');
+        imageInput.value='';
+        return;
+    }
+  if(!imageInput.files.length) return;
+  const fd = new FormData();
+  fd.append('image_file', imageInput.files[0]);
+  const r = await csrfFetch('/upload_image',{method:'POST', body:fd});
+  const j = await r.json();
+  if(j.success){
+    // ソケットに thumb と original を含める（後方互換: message に original ファイル名）
+    socket.emit('send_private_message',{
+      recipient_id:opponentId,
+      message:j.file,
+      message_type:'image',
+      thumb:j.thumb,
+      original_url:j.original_url,
+      thumb_url:j.thumb_url
+    });
+  } else alert('画像送信失敗:'+j.error);
+  imageInput.value='';
+    });
+
+    // ---- スタンプピッカー ----
+btnStamp.addEventListener('click', ()=>{
+  $('#stampPickerModal').modal('show');
+  loadStamps();
+});
+async function loadStamps(){
+  const grid = document.getElementById('stamp-grid');
+  grid.innerHTML = '<div class="text-muted small">読み込み...</div>';
+  try {
+    const r = await fetch('/api/stamps');
+    const j = await r.json();
+    grid.innerHTML='';
+    if(!j.success) return grid.textContent='失敗';
+        j.stamps.forEach(st=>{
+            const im = document.createElement('img');
+            const displayUrl = st.full_url || st.image_path;
+            im.src = displayUrl; // 表示用URL
+      im.alt = st.name;
+      im.style.width='48px';im.style.height='48px';im.style.objectFit='cover';im.style.cursor='pointer';
+      im.addEventListener('click', ()=>{
+        socket.emit('send_private_message',{recipient_id:opponentId,message:st.image_path,message_type:'stamp'});
+        $('#stampPickerModal').modal('hide');
+      });
+      grid.appendChild(im);
+    });
+    if(!j.stamps.length) grid.innerHTML='<div class="text-muted small">スタンプなし</div>';
+  } catch(e){ grid.textContent='エラー'; }
+}
+document.getElementById('reload-stamps').addEventListener('click', loadStamps);
+
+// ペナルティ画像アップロード/ゲーム警告バナー (ヘッダ付近)
+document.addEventListener('DOMContentLoaded', ()=>{
+    const ps = parseInt(document.body.getAttribute('data-penalty-stage')||'0');
+    if(ps>=5){
+        const host = document.querySelector('.container') || document.body;
+        const warn = document.createElement('div');
+        warn.className='alert alert-danger';
+        warn.style.border='2px solid #ff4d4f';
+        warn.innerHTML='<strong>機能制限中 (Stage '+ps+')</strong><br>画像アップロード / 一部ゲーム機能は現在使用できません。';
+        host.insertBefore(warn, host.firstChild);
+    }
+});
+
+// ---- GIF検索モーダル ----
+btnGif.addEventListener('click', ()=>{
+  $('#gifSearchModal').modal('show');
+  document.getElementById('gif-results').innerHTML='';
+});
+async function performGifSearch(){
+  const q = document.getElementById('gif-query').value.trim()||'funny';
+  const resDiv = document.getElementById('gif-results');
+  resDiv.innerHTML='<div class="text-muted small">検索中...</div>';
+  try {
+    const r = await fetch('/api/gif/search?q='+encodeURIComponent(q));
+    const j = await r.json();
+    if(!j.success){resDiv.textContent='失敗';return;}
+    resDiv.innerHTML='';
+    j.results.forEach(g=>{
+      const wrap=document.createElement('div');
+      wrap.style.position='relative';
+      wrap.style.cursor='pointer';
+      wrap.innerHTML=`<img src="${g.preview||g.url}" style="width:120px;height:90px;object-fit:cover;border-radius:4px;" alt="gif"><div style="position:absolute;bottom:2px;left:2px;font-size:10px;color:#fff;text-shadow:0 0 2px #000;max-width:110px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${(g.title||'').slice(0,16)}</div>`;
+      wrap.addEventListener('click',()=>{
+        socket.emit('send_private_message',{recipient_id:opponentId,message:g.url,message_type:'gif'});
+        $('#gifSearchModal').modal('hide');
+      });
+      resDiv.appendChild(wrap);
+    });
+    if(!j.results.length) resDiv.textContent='結果なし';
+  } catch(e){ resDiv.textContent='エラー'; }
+}
+
+document.getElementById('gif-do-search').addEventListener('click', performGifSearch);
+
+document.getElementById('gif-query').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); performGifSearch(); }});
+
     socket.on('new_private_message', (msg) => {
         if ((msg.sender_id == opponentId && msg.recipient_id == currentUserId) || 
             (msg.sender_id == currentUserId && msg.recipient_id == opponentId)) {
@@ -193,24 +392,446 @@ document.addEventListener('DOMContentLoaded', function() {
             if (msg.message_type === 'voice') {
                 const audioSrc = `/static/assets/uploads/${msg.content}`;
                 messageContentHTML = `<audio controls class="voice-message-player"><source src="${audioSrc}" type="audio/webm"></audio>`;
+            } else if (['image','gif','stamp'].includes(msg.message_type)) {
+                if(msg.message_type==='image'){
+    const full = msg.original_url || normalizeMediaUrl(msg.content, 'image');
+    const thumbSrc = msg.thumb_url || (msg.thumb ? normalizeMediaUrl('thumb_'+msg.content,'image') : full);
+    messageContentHTML = `<img src="${thumbSrc}" data-full="${full}" alt="image" style="max-width:200px;border-radius:4px;" loading="lazy" onerror="if(this.dataset.full && this.src!==this.dataset.full){this.src=this.dataset.full}" />`;
+  } else if(msg.message_type==='stamp'){
+    const mediaUrl = normalizeMediaUrl(msg.content, 'stamp');
+    messageContentHTML = `<img src="${mediaUrl}" data-full="${mediaUrl}" alt="stamp" style="max-width:200px;border-radius:4px;" loading="lazy"/>`;
+  } else { // gif
+    const mediaUrl = normalizeMediaUrl(msg.content, 'gif');
+    messageContentHTML = `<img src="${mediaUrl}" data-full="${mediaUrl}" alt="gif" style="max-width:200px;border-radius:4px;" loading="lazy"/>`;
+  }
             } else {
                 messageContentHTML = document.createTextNode(msg.content).textContent.replace(/\\n/g, '<br>');
+            }
+            if (msg.link_preview_json && msg.message_type === 'text') {
+                try {
+                    const lp = JSON.parse(msg.link_preview_json);
+                    if (lp.url) {
+                        const imgPart = lp.image ? `<img src="${lp.image}" class="link-preview-thumb" alt="preview">` : '';
+                        const descPart = lp.description ? `<div class="link-preview-desc">${escapeHtml(lp.description)}</div>` : '';
+                        messageContentHTML += `\n<a class="link-preview-card" href="${lp.url}" target="_blank" rel="noopener noreferrer">${imgPart}<div class="link-preview-meta"><div class="link-preview-title">${escapeHtml(lp.title||lp.url)}</div>${descPart}</div></a>`;
+                    }
+                } catch(e) { console.warn('LP parse fail', e); }
             }
 
             const msgRowHTML = `
             <div id="message-row-${msg.id}" class="message-row ${msg.sender_id == currentUserId ? 'my-message-row' : 'opponent-message-row'}">
                 <div class="message-bubble" data-message-id="${msg.id}" data-sender-id="${msg.sender_id}">
+                    <span class="pin-indicator d-none"><i class="bi bi-pin-angle-fill"></i></span>
                     <div class="message-content">${messageContentHTML}</div>
                     <div class="message-meta">
                         ${new Date(msg.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                     </div>
+                    <div class="reaction-bar" id="reaction-bar-${msg.id}"></div>
+                    <div class="translate-bar small text-right" style="font-size:0.6em; color:#555;"></div>
                 </div>
             </div>`;
             chatContainer.innerHTML += msgRowHTML;
             scrollToBottom();
+            if (msg.message_type === 'text') {
+                maybeAutoTranslate(msg.id, msg.sender_id, messageContentHTML);
+            }
         }
     });
+
+    // ---- Action Popup (編集/削除/ピン/返信/転送/リアクション) ----
+    let currentActionPopup = null;
+    chatContainer.addEventListener('click', (e) => {
+        const bubble = e.target.closest('.message-bubble');
+        if (!bubble) return;
+        const msgId = bubble.dataset.messageId;
+        const senderId = bubble.dataset.senderId;
+        if (currentActionPopup) currentActionPopup.remove();
+        const pop = document.createElement('div');
+        pop.className = 'message-actions-pop';
+        pop.innerHTML = `
+            <button data-act="reply">返信</button>
+            <button data-act="react">👍</button>
+            <button data-act="pin">ピン</button>
+            ${parseInt(senderId) === currentUserId ? '<button data-act="edit">編集</button><button data-act="del">削除</button>' : ''}
+            <button data-act="fwd">転送</button>
+        `;
+        bubble.appendChild(pop);
+        currentActionPopup = pop;
+        pop.addEventListener('click', (ev) => {
+            const act = ev.target.dataset.act;
+            if (!act) return;
+            if (act === 'edit') {
+                const newText = prompt('新しい内容:');
+                if (newText) socket.emit('edit_message', {message_id: msgId, content: newText});
+            } else if (act === 'del') {
+                if (confirm('削除しますか?')) socket.emit('delete_message', {message_id: msgId});
+            } else if (act === 'pin') {
+                socket.emit('pin_message', {message_id: msgId});
+            } else if (act === 'react') {
+                const r = prompt('リアクション絵文字 (例: 😀)');
+                if (r) socket.emit('react_message', {message_id: msgId, reaction: r});
+            } else if (act === 'reply') {
+                const content = prompt('返信内容:');
+                if (content) socket.emit('reply_message', {parent_id: msgId, content});
+            } else if (act === 'fwd') {
+                const toUser = prompt('転送先ユーザーID:');
+                if (toUser) socket.emit('forward_message', {src_id: msgId, to_user_id: parseInt(toUser)});
+            }
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.message-actions-pop') && !e.target.closest('.message-bubble')) {
+            if (currentActionPopup) currentActionPopup.remove();
+        }
+    });
+
+    // ---- Socket realtime handlers ----
+    socket.on('message_edited', (p) => {
+        const row = document.querySelector(`#message-row-${p.id} .message-content`);
+        if (row) row.innerHTML = p.content.replace(/\n/g,'<br>');
+        const meta = document.querySelector(`#message-row-${p.id} .message-meta`);
+        if (meta && !meta.innerHTML.includes('(編集)')) meta.innerHTML += '<span class="edit-badge">(編集)</span>';
+    });
+    socket.on('message_deleted', (p) => {
+        const bubble = document.querySelector(`#message-row-${p.id} .message-content`);
+        if (bubble) bubble.innerHTML = '<em class="text-muted">(削除されました)</em>';
+    });
+    socket.on('message_pinned', (p) => {
+        const pin = document.querySelector(`#message-row-${p.id} .pin-indicator`);
+        if (pin) pin.classList.toggle('d-none', !p.is_pinned);
+        refreshPinnedList();
+    });
+    socket.on('reaction_updated', (p) => {
+        const bar = document.getElementById(`reaction-bar-${p.message_id}`);
+        if (!bar) return;
+        // シンプル: 再取得せずトグル表示 (ユーザ単位複数同一リアクション禁止)
+        let nodes = [...bar.querySelectorAll('.reaction-item')];
+        const key = `${p.reaction}-${p.user_id}`;
+        const existing = nodes.find(n => n.dataset.key === key);
+        if (existing && p.removed) existing.remove();
+        else if (!existing && !p.removed) {
+            const span = document.createElement('span');
+            span.className='reaction-item';
+            span.dataset.key=key;
+            span.textContent=p.reaction;
+            bar.appendChild(span);
+        }
+    });
+    socket.on('message_replied', (p) => {
+        // 簡易: 親ID表示付きで末尾に追加
+        if ((p.sender_id==currentUserId && p.recipient_id==opponentId) || (p.sender_id==opponentId && p.recipient_id==currentUserId)) {
+            const html = `
+            <div id="message-row-${p.id}" class="message-row ${p.sender_id==currentUserId?'my-message-row':'opponent-message-row'}">
+              <div class="message-bubble" data-message-id="${p.id}" data-sender-id="${p.sender_id}">
+                <span class="pin-indicator d-none"><i class="bi bi-pin-angle-fill"></i></span>
+                <div class="reply-ref">返信: #${p.reply_to_id}</div>
+                                <div class="message-content">${p.content.replace(/\n/g,'<br>')}</div>
+                                <div class="message-meta">${new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div>
+                <div class="reaction-bar" id="reaction-bar-${p.id}"></div>
+                                <div class="translate-bar small text-right" style="font-size:0.6em; color:#555;"></div>
+              </div>
+            </div>`;
+            chatContainer.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+                        maybeAutoTranslate(p.id, p.sender_id, p.content.replace(/\n/g,'<br>'));
+        }
+    });
+    socket.on('message_forwarded', (p) => {
+        if ((p.sender_id==currentUserId && p.recipient_id==opponentId) || (p.sender_id==opponentId && p.recipient_id==currentUserId)) {
+            const html = `
+            <div id="message-row-${p.id}" class="message-row ${p.sender_id==currentUserId?'my-message-row':'opponent-message-row'}">
+              <div class="message-bubble" data-message-id="${p.id}" data-sender-id="${p.sender_id}">
+                <span class="pin-indicator d-none"><i class="bi bi-pin-angle-fill"></i></span>
+                <div class="message-content"><em class="text-muted">(転送)</em><br>${p.content.replace(/\n/g,'<br>')}</div>
+                                <div class="message-meta">${new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div>
+                <div class="reaction-bar" id="reaction-bar-${p.id}"></div>
+                                <div class="translate-bar small text-right" style="font-size:0.6em; color:#555;"></div>
+              </div>
+            </div>`;
+            chatContainer.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+                        maybeAutoTranslate(p.id, p.sender_id, p.content.replace(/\n/g,'<br>'));
+        }
+    });
+    socket.on('message_read', (p) => {
+        // 自分が送ったメッセージを相手が読んだ場合に既読時刻を表示
+        if (p.reader_id === opponentId) { // 相手が読んだ
+            const row = document.querySelector(`#message-row-${p.id}`);
+            if (row && row.classList.contains('my-message-row')) {
+                const meta = row.querySelector('.message-meta');
+                if (meta && !meta.querySelector('.read-at')) {
+                    const span = document.createElement('span');
+                    span.className = 'read-at ml-1';
+                    const t = p.read_at ? new Date(p.read_at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}) : '既読';
+                    span.textContent = ` ✔ ${t}`;
+                    meta.appendChild(span);
+                }
+            }
+        }
+    });
+    socket.on('mention_notification', (p) => {
+        if (p.to_user === currentUserId) {
+            // 簡易通知
+            console.log('Mention通知', p);
+        }
+    });
+
+    // === メディアリアクション（画像/スタンプ/画像派生）オーバーレイ初期化 ===
+    function setupMediaReactions(){
+        document.querySelectorAll('.media-message').forEach(bubble=>{
+            if(bubble.dataset.reactInit) return; bubble.dataset.reactInit='1';
+            const overlay = bubble.querySelector('.reaction-overlay');
+            const wrapper = bubble.querySelector('.media-wrapper');
+            if(!overlay || !wrapper) return;
+            wrapper.addEventListener('mouseenter', ()=>overlay.classList.remove('d-none'));
+            wrapper.addEventListener('mouseleave', ()=>overlay.classList.add('d-none'));
+        });
+        document.querySelectorAll('.react-btn').forEach(btn=>{
+            if(btn.dataset.rbInit) return; btn.dataset.rbInit='1';
+            btn.addEventListener('click', ()=>{
+                const mid = parseInt(btn.dataset.mid,10);
+                const r = btn.dataset.r;
+                socket.emit('react_message', {message_id: mid, reaction: r});
+            });
+        });
+    }
+    socket.on('reaction_updated', data => {
+        const bar = document.getElementById('reaction-bar-'+data.message_id);
+        if(!bar) return;
+        const key = `r-${data.reaction}-${data.user_id}`;
+        let span = bar.querySelector(`span[data-key="${key}"]`);
+        if(data.removed){ if(span) span.remove(); }
+        else {
+            if(!span){
+                span = document.createElement('span');
+                span.dataset.key=key; span.className='reaction-item'; span.textContent=data.reaction;
+                bar.appendChild(span);
+            }
+        }
+    });
+    // 最初のロード時も既存メディアに適用
+    setupMediaReactions();
+
+    async function refreshPinnedList() {
+        try {
+            const r = await fetch(`/chat/pins/private/${opponentId}`);
+            const j = await r.json();
+            let panel = document.getElementById(pinnedPanelId);
+            if (!panel) {
+                panel = document.createElement('div');
+                panel.id = pinnedPanelId;
+                panel.className = 'pinned-list';
+                panel.innerHTML = '<h6>ピン留め</h6><div class="pins-body"></div>';
+                document.body.appendChild(panel);
+            }
+            const body = panel.querySelector('.pins-body');
+            body.innerHTML='';
+            j.pins.forEach(m => {
+                const d = document.createElement('div');
+                d.style.fontSize='0.7em';
+                d.style.borderBottom='1px solid #eee';
+                d.style.marginBottom='2px';
+                d.textContent = `#${m.id} ${m.content.substring(0,40)}`;
+                body.appendChild(d);
+            });
+            panel.style.display = j.pins.length? 'block':'none';
+        } catch(e) { console.warn('Pinned fetch error', e); }
+    }
+    refreshPinnedList();
+
+    // ====== 翻訳UIロジック ======
+    const userLanguage = '{{ current_user.language_code or "ja" }}';
+    const translationCache = {}; // messageId -> { translated, sourceLang, targetLang }
+
+    function extractPlain(html){
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || '';
+    }
+
+    async function translateMessage(messageId, originalHtml){
+        if (translationCache[messageId]) return translationCache[messageId];
+        const text = extractPlain(originalHtml).trim();
+        const fd = new FormData();
+        fd.append('text', text);
+        fd.append('target_lang', userLanguage);
+        const res = await fetch('/message/translate', {method:'POST', body: fd});
+        const j = await res.json();
+        if (j.success) {
+            translationCache[messageId] = {translated: j.translated_text, detected: j.detected_source, target: j.target_lang};
+            return translationCache[messageId];
+        }
+        throw new Error('translate_failed');
+    }
+
+    function addTranslateToggle(messageId, originalHtml){
+        const bubble = document.querySelector(`#message-row-${messageId} .message-bubble`);
+        if (!bubble) return;
+        const bar = bubble.querySelector('.translate-bar');
+        if (!bar) return;
+        bar.innerHTML = '<button class="btn btn-link p-0 translate-btn" data-state="orig" style="font-size:0.6em;">翻訳</button>';
+        bar.querySelector('.translate-btn').addEventListener('click', async (e)=>{
+            const btn = e.target;
+            const state = btn.dataset.state;
+            const contentDiv = bubble.querySelector('.message-content');
+            if (state === 'orig') {
+                btn.disabled = true; btn.textContent='翻訳中...';
+                try {
+                    const data = await translateMessage(messageId, originalHtml);
+                    bubble.dataset.originalHtml = originalHtml;
+                    bubble.dataset.translatedHtml = escapeHtml(data.translated).replace(/\n/g,'<br>');
+                    contentDiv.innerHTML = bubble.dataset.translatedHtml;
+                    btn.dataset.state='translated';
+                    btn.textContent='原文';
+                } catch(err){
+                    btn.textContent='失敗';
+                    setTimeout(()=>{btn.textContent='翻訳'; btn.disabled=false;},1500);
+                }
+            } else if (state === 'translated') {
+                contentDiv.innerHTML = originalHtml;
+                btn.dataset.state='orig';
+                btn.textContent='翻訳';
+            }
+        });
+    }
+
+    function maybeAutoTranslate(messageId, senderId, originalHtml){
+        if (senderId === currentUserId) { // 自分のメッセージは自動翻訳不要
+            addTranslateToggle(messageId, originalHtml);
+            return;
+        }
+        // 受信したメッセージを自動翻訳 (source != target の場合)
+        addTranslateToggle(messageId, originalHtml); // 先にトグル配置
+        // ユーザ設定言語が日本語以外などでも翻訳APIが返す detected != target なら表示切替
+        translateMessage(messageId, originalHtml).then(data=>{
+            if (data.detected && data.detected !== data.target) {
+                const bubble = document.querySelector(`#message-row-${messageId} .message-bubble`);
+                if (bubble) {
+                    const contentDiv = bubble.querySelector('.message-content');
+                    bubble.dataset.originalHtml = originalHtml;
+                    bubble.dataset.translatedHtml = escapeHtml(data.translated).replace(/\n/g,'<br>');
+                    contentDiv.innerHTML = bubble.dataset.translatedHtml;
+                    const btn = bubble.querySelector('.translate-btn');
+                    if (btn){ btn.dataset.state='translated'; btn.textContent='原文'; btn.disabled=false; }
+                }
+            }
+        }).catch(()=>{});
+    }
+
+    // --- 画像/スタンプクリックで拡大 ---
+chatContainer.addEventListener('click', (e)=>{
+    const img = e.target.closest('img');
+    if(!img) return;
+    if(!img.closest('.message-bubble')) return; // バブル内画像のみ対象
+    const fullSrc = img.getAttribute('data-full') || img.src; // 将来thumbと原寸を分離する場合
+    document.getElementById('preview-full-image').src = fullSrc;
+    document.getElementById('preview-meta').textContent = fullSrc;
+    $('#imagePreviewModal').modal('show');
 });
+
+let mediaSequence = [];
+function rebuildMediaSequence(){
+  mediaSequence = [...document.querySelectorAll('#chat-container img[data-full]')];
+}
+chatContainer.addEventListener('DOMNodeInserted', rebuildMediaSequence);
+rebuildMediaSequence();
+let currentMediaIndex = -1;
+$('#imagePreviewModal').on('show.bs.modal', ()=>{
+  rebuildMediaSequence();
+});
+chatContainer.addEventListener('click', (e)=>{
+  const img = e.target.closest('img[data-full]');
+  if(!img) return;
+  rebuildMediaSequence();
+  currentMediaIndex = mediaSequence.indexOf(img);
+});
+function showMediaAt(idx){
+  if(idx<0||idx>=mediaSequence.length) return; 
+  currentMediaIndex=idx;
+  const node=mediaSequence[idx];
+  const full=node.getAttribute('data-full')||node.src;
+  document.getElementById('preview-full-image').src=full;
+  document.getElementById('preview-meta').textContent=full;
+}
+function showNext(delta){
+  if(currentMediaIndex===-1) return;
+  let ni=currentMediaIndex+delta;
+  if(ni<0) ni=mediaSequence.length-1; else if(ni>=mediaSequence.length) ni=0;
+  showMediaAt(ni);
+}
+document.addEventListener('keydown',(e)=>{
+  if(!$('#imagePreviewModal').hasClass('show')) return;
+  if(e.key==='ArrowRight') showNext(1);
+  else if(e.key==='ArrowLeft') showNext(-1);
+});
+// スワイプ
+let touchStartX=null;
+const modalImg=document.getElementById('preview-full-image');
+modalImg.addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX;});
+modalImg.addEventListener('touchend',e=>{
+  if(touchStartX==null) return;
+  const dx=e.changedTouches[0].clientX - touchStartX;
+  if(Math.abs(dx)>40){ dx<0?showNext(1):showNext(-1);} 
+  touchStartX=null;
+});
+
+function normalizeMediaUrl(raw, type){
+  if(!raw) return raw;
+  // 既に http(s) か /static/ で始まればそのまま
+  if(/^https?:\/\//i.test(raw) || raw.startsWith('/static/')) return raw;
+  // スタンプフォルダ特例
+  if(type==='stamp') return '/static/assets/uploads/stamps/' + raw;
+  return '/static/assets/uploads/' + raw;
+}
+
+// メッセージ表示時に mediaUrl 生成
+function applyMediaUrlNormalization() {
+  document.querySelectorAll('.message-bubble').forEach(bubble => {
+    const msgId = bubble.dataset.messageId;
+    const senderId = bubble.dataset.senderId;
+    const contentDiv = bubble.querySelector('.message-content');
+    if (!contentDiv) return;
+    let html = contentDiv.innerHTML;
+    // 音声メッセージの場合
+    if (html.includes('voice-message-player')) {
+      const audioSrcMatch = html.match(/src="([^"]+)"/);
+      if (audioSrcMatch) {
+        const rawUrl = audioSrcMatch[1];
+        const normalizedUrl = normalizeMediaUrl(rawUrl, 'voice');
+        html = html.replace(rawUrl, normalizedUrl);
+      }
+    } else {
+      // その他メッセージ (画像/GIF/スタンプ)
+      const mediaUrlMatch = html.match(/<img src="([^"]+)"/);
+      if (mediaUrlMatch) {
+        const rawUrl = mediaUrlMatch[1];
+        const type = html.includes('stamp') ? 'stamp' : 'image';
+        const normalizedUrl = normalizeMediaUrl(rawUrl, type);
+        html = html.replace(rawUrl, normalizedUrl);
+      }
+    }
+    contentDiv.innerHTML = html;
+    // 自動翻訳後のHTMLにも適用
+    const origHtml = bubble.dataset.originalHtml;
+    const transHtml = bubble.dataset.translatedHtml;
+    if (origHtml) {
+      bubble.dataset.originalHtml = origHtml.replace(/src="([^"]+)"/, (match, p1) => `src="${normalizeMediaUrl(p1)}"`);
+    }
+    if (transHtml) {
+      bubble.dataset.translatedHtml = transHtml.replace(/src="([^"]+)"/, (match, p1) => `src="${normalizeMediaUrl(p1)}"`);
+    }
+  });
+}
+applyMediaUrlNormalization();
+
+});
+</script>
+<script>
+// ペナルティステージ属性 (テンプレートコンテキスト反映)
+(function(){
+    try{ document.body.setAttribute('data-penalty-stage','{{ penalty_stage|default(0) }}'); }catch(e){}
+})();
 </script>
 </body>
 </html>

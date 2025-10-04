@@ -14,9 +14,12 @@
     <div class="card mb-4">
         <div class="card-header">リアルタイム情報</div>
         <div class="card-body">
-            <p><strong>天気:</strong> {% for w in weather_data %}{{ w.data }} {% endfor %}</p>
-            <p><strong>交通:</strong> {{ traffic.data if traffic else '情報なし' }}</p>
-            <p><strong>災害:</strong> {{ disaster.data if disaster else '情報なし' }}</p>
+            <p><strong>天気:</strong> {% if weather_data %}{{ weather_data.data }}{% else %}情報なし{% endif %}
+                <a class="btn btn-sm btn-outline-secondary ml-2" href="{{ url_for('weather_detail') }}">詳細へ</a></p>
+            <p><strong>交通:</strong> {{ traffic.data if traffic else '情報なし' }}
+                <a class="btn btn-sm btn-outline-secondary ml-2" href="{{ url_for('traffic_detail') }}">詳細へ</a></p>
+            <p><strong>災害:</strong> {{ disaster.data if disaster else '情報なし' }}
+                <a class="btn btn-sm btn-outline-secondary ml-2" href="{{ url_for('disaster_detail') }}">詳細へ</a></p>
         </div>
     </div>
 

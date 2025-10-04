@@ -100,6 +100,7 @@ python-socketio
 pytweening
 pytz
 pywin32-ctypes
+redis>=5.0.0
 requests
 requests-oauthlib
 rsa
@@ -134,3 +135,54 @@ zope.interface
 gunicorn
 gevent-websocket
 sqlite3
+
+# Flask関連
+Flask==2.3.3
+Flask-Login==0.6.3
+Flask-SocketIO==5.3.6
+Flask-WTF==1.1.1
+WTForms==3.0.1
+
+# セキュリティ・暗号化
+Werkzeug==2.3.7
+bcrypt==4.0.1
+
+# データベース
+SQLAlchemy==2.0.23
+
+# リアルタイム通信
+python-socketio==5.9.0
+eventlet==0.33.3
+
+# 画像処理
+Pillow==10.0.1
+
+# HTTP・スクレイピング
+requests==2.31.0
+beautifulsoup4==4.12.2
+urllib3==2.0.7
+
+# AI・API
+groq==0.4.1
+google-generativeai==0.3.2
+
+# スケジューラー
+APScheduler
+
+# 環境変数
+python-dotenv
+
+# HTML処理・セキュリティ
+bleach
+MarkupSafe
+
+# レート制限
+Flask-Limiter
+
+# 開発・デバッグ用
+python-dateutil
+pytz
+
+# セキュリティ強化用
+python-magic
+python-magic-bin  # Windowsの場合

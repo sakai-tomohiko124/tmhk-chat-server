@@ -2,32 +2,21 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>新規登録 - TMHKchat</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/mobile_auth.css') }}" rel="stylesheet">
     <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .register-container {
-            max-width: 450px;
-            margin: 30px auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            overflow: hidden;
-        }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .register-container { max-width: 450px; margin: 24px auto; background: #fff; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; }
         .register-header {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
             padding: 25px 20px;
             text-align: center;
         }
-        .register-body {
-            padding: 30px;
-        }
+        .register-body { padding: 28px 30px 34px; }
         .account-type-card {
             border: 2px solid #e9ecef;
             border-radius: 8px;
@@ -40,6 +29,12 @@
         .account-type-card.selected {
             border-color: #f5576c;
             background: #fff5f7;
+        }
+        /* モバイル時はカード群を非表示しプルダウンに切り替え */
+        #account-type-select-wrapper { display: none; }
+        @media (max-width: 576px) {
+            .account-type-cards-wrapper { display: none; }
+            #account-type-select-wrapper { display: block; }
         }
     </style>
 </head>
@@ -62,57 +57,75 @@
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
-                
-                <form method="POST">
+<form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">アカウントタイプ</label>
-                        <div class="row">
+                        <label class="form-label fw-bold">利用区分</label>
+                        <div class="row account-type-cards-wrapper">
+                            {# work カテゴリは非表示 #}
                             {% for key, value in account_types.items() %}
                             <div class="col-12">
-                                <div class="account-type-card" onclick="selectAccountType('{{ key }}')">
-                                    <input type="radio" name="account_type" value="{{ key }}" id="reg-type-{{ key }}" 
-                                           {% if key == selected_account_type %}checked{% endif %} style="display: none;">
+                                <div class="account-type-card" data-type="{{ key }}" onclick="selectAccountType('{{ key }}')">
+                                    <input type="radio" name="account_type" value="{{ key }}" id="reg-type-{{ key }}" {% if key == selected_account_type %}checked{% endif %} style="display: none;">
                                     <div class="fw-bold">{{ value['name'] }}</div>
                                     <small class="text-muted">{{ value['name'] }}用アカウント</small>
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
+                        <div id="account-type-select-wrapper" class="mt-2">
+                            <select class="form-select" id="account_type_select" onchange="selectAccountType(this.value)">
+                                {% for key, value in account_types.items() %}
+                                  <option value="{{ key }}" {% if key == selected_account_type %}selected{% endif %}>{{ value['name'] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <small class="text-muted">画面幅によってカード表示 / プルダウン表示が自動で切り替わります。</small>
                     </div>
                     
-                    <div class="mb-3" id="custom-account-name-wrapper" style="display: none;">
+                    <div class="mb-3" id="custom-account-name-wrapper" data-initial-visible="{% if selected_account_type=='other' %}1{% else %}0{% endif %}">
                         <label for="custom_account_name" class="form-label">コミュニティ名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="custom_account_name" name="custom_account_name"
-                               placeholder="参加したいコミュニティ名を入力">
+                        <input type="text" class="form-control" id="custom_account_name" name="custom_account_name" {% if selected_account_type=='other' %}required{% endif %}
+                               placeholder="例) 趣味用 / 部活用 / サークル名 等">
+                        <small class="text-muted">利用区分で『その他』を選ぶと必須になります。『職場用』選択時は自動的に非表示です。</small>
                     </div>
 
                     <div class="mb-3">
                         <label for="username" class="form-label">ユーザー名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="username" name="username" required
-                               placeholder="ユーザー名（半角英数字・日本語可）" maxlength="20">
+                        <input type="text" class="form-control" id="username" name="username" required placeholder="ユーザー名（半角英数字・日本語可）" maxlength="20" autocomplete="username">
                     </div>
                     
                     <div class="mb-3">
                         <label for="email" class="form-label">メールアドレス <small class="text-muted">(任意)</small></label>
-                        <input type="email" class="form-control" id="email" name="email"
-                               placeholder="example@email.com">
+               <input type="email" class="form-control" id="email" name="email" placeholder="example@email.com" autocomplete="email">
                     </div>
                     
                     <div class="mb-3">
                         <label for="password" class="form-label">パスワード <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" id="password" name="password" required
-                                   placeholder="パスワード（8文字以上推奨）" minlength="4">
+                        <input type="password" class="form-control" id="password" name="password" required placeholder="パスワード（2文字以上）" minlength="2" autocomplete="new-password">
+                        <div class="mt-2">
+                            <div class="progress pw-strength-bar">
+                                <div id="pwStrengthBar" class="progress-bar bg-danger" style="width:10%;"></div>
+                            </div>
+                            <small id="pwStrengthLabel" class="text-muted">とても弱い</small>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password_confirm" class="form-label">パスワード(確認) <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="password_confirm" name="password_confirm" required placeholder="もう一度入力" autocomplete="new-password">
+                        <small class="text-muted">ユーザー名 / メールアドレス どちらでログインしても同じパスワードです。</small>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                    <button type="submit" class="btn btn-primary w-100 mb-3 tap-friendly-btn">
                         <i class="bi bi-person-plus"></i> アカウント作成
                     </button>
                     
                     <div class="text-center">
                         <span class="text-muted">既にアカウントをお持ちですか？</span>
-                        <a href="{{ url_for('login') }}" class="text-decoration-none">ログイン</a>
+                        <a href="{{ url_for('root') }}" class="text-decoration-none">ログイン</a>
                     </div>
                 </form>
+                
             </div>
         </div>
     </div>
@@ -123,8 +136,13 @@
             document.querySelectorAll('.account-type-card').forEach(card => {
                 card.classList.remove('selected');
             });
-            event.currentTarget.classList.add('selected');
-            document.getElementById('reg-type-' + type).checked = true;
+            // カードから呼ばれた場合は event.currentTarget が存在 / セレクトからの場合は data-type マッチ
+            const card = document.querySelector('.account-type-card[data-type="' + type + '"]');
+            if(card) card.classList.add('selected');
+            const radio = document.getElementById('reg-type-' + type);
+            if(radio) radio.checked = true;
+            const selectEl = document.getElementById('account_type_select');
+            if(selectEl && selectEl.value !== type) selectEl.value = type;
 
             const customInput = document.getElementById('custom-account-name-wrapper');
             if (type === 'other') {
@@ -141,6 +159,57 @@
             if (selectedRadio) {
                 selectedRadio.closest('.account-type-card').classList.add('selected');
             }
+            // data 属性に基づき初期表示制御
+            const wrap = document.getElementById('custom-account-name-wrapper');
+            if (wrap) {
+                const initVisible = wrap.getAttribute('data-initial-visible') === '1';
+                wrap.style.display = initVisible ? 'block' : 'none';
+                if (selectedRadio) selectAccountType(selectedRadio.value);
+            }
+            // 初期同期（モバイル select 側）
+            const sel = document.getElementById('account_type_select');
+            if (sel && selectedRadio && sel.value !== selectedRadio.value) sel.value = selectedRadio.value;
+            // パスワード確認検証 + 強度メーター
+            const form = document.querySelector('form');
+            const pw = document.getElementById('password');
+            const bar = document.getElementById('pwStrengthBar');
+            const label = document.getElementById('pwStrengthLabel');
+            function evaluateStrength(val){
+                let score = 0;
+                if(val.length >= 2) score += 10; // 最低
+                if(val.length >= 4) score += 20;
+                if(val.length >= 8) score += 30;
+                if(/[A-Z]/.test(val)) score += 10;
+                if(/[0-9]/.test(val)) score += 15;
+                if(/[^A-Za-z0-9]/.test(val)) score += 15;
+                return Math.min(score,100);
+            }
+            function strengthLabel(score){
+                if(score < 25) return {text:'とても弱い', cls:'bg-danger'};
+                if(score < 50) return {text:'弱い', cls:'bg-warning'};
+                if(score < 75) return {text:'普通', cls:'bg-info'};
+                if(score < 90) return {text:'強い', cls:'bg-primary'};
+                return {text:'とても強い', cls:'bg-success'};
+            }
+            pw.addEventListener('input', function(){
+                const score = evaluateStrength(pw.value);
+                const info = strengthLabel(score);
+                bar.style.width = (score || 5) + '%';
+                bar.className = 'progress-bar ' + info.cls;
+                label.textContent = info.text;
+            });
+            form.addEventListener('submit', function(e){
+                const p1 = pw.value;
+                const p2 = document.getElementById('password_confirm').value;
+                if(p1 !== p2){
+                    e.preventDefault();
+                    alert('パスワードが一致しません');
+                }
+                if(p1.length < 2){
+                    e.preventDefault();
+                    alert('パスワードは2文字以上で入力してください');
+                }
+            });
         });
     </script>
 </body>

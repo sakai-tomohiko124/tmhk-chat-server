@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>グループチャット - TMHKchat</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background:#f3f3f3; }
+    .chat-wrapper { max-width:960px; margin:0 auto; height:100vh; display:flex; flex-direction:column; }
+    .chat-header { background:#006f6b; color:#fff; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; }
+    .messages-area { flex:1; overflow-y:auto; padding:12px; }
+    .message-row { margin-bottom:6px; display:flex; flex-direction:column; }
+    .bubble { position:relative; max-width:70%; padding:8px 12px; border-radius:8px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,0.1); cursor:pointer; }
+    .mine .bubble { background:#d8fdd2; margin-left:auto; }
+    .meta { font-size:.65em; color:#666; margin-top:2px; }
+    .reply-ref { font-size:.65em; background:#eee; border-left:3px solid #888; padding:2px 6px; margin-bottom:4px; border-radius:4px; }
+    .pin-indicator { position:absolute; top:2px; right:6px; color:#c9a300; font-size:.85em; }
+    .reaction-bar { margin-top:4px; display:flex; gap:4px; flex-wrap:wrap; font-size:.75em; }
+    .reaction-item { background:#fff; border:1px solid #ddd; border-radius:12px; padding:0 6px; }
+    .link-preview-card { border:1px solid #ccc; background:#fafafa; border-radius:6px; padding:6px; font-size:0.75em; margin-top:4px; display:flex; gap:8px; text-decoration:none; color:#222; }
+    .link-preview-thumb { width:48px; height:48px; object-fit:cover; border-radius:4px; background:#ddd; }
+    .link-preview-title { font-weight:600; font-size:0.75em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .link-preview-desc { font-size:0.65em; color:#555; max-height:2.4em; overflow:hidden; }
+    .input-area { padding:8px; background:#fafafa; border-top:1px solid #ddd; }
+    .message-actions-pop { position:absolute; top:-4px; left:0; transform:translateY(-100%); background:#333; color:#fff; padding:4px 6px; border-radius:4px; display:flex; gap:6px; font-size:0.7em; }
+  </style>
+</head>
+<body>
+  <div class="chat-wrapper">
+    <div class="chat-header">
+      <a href="{{ url_for('main_app', talk_filter='groups') }}" class="btn btn-sm btn-light"><i class="bi bi-arrow-left"></i></a>
+      <strong>#{{ room.name }}</strong>
+      <div id="roomMembersCount"></div>
+    </div>
+    <div class="messages-area" id="messagesArea">
+      {% for m in messages %}
+      <div id="gmsg-{{ m.id }}" class="message-row {{ 'mine' if m.user_id==current_user.id else '' }}" data-mid="{{ m.id }}" data-user="{{ m.user_id }}">
+        <div class="bubble" data-mid="{{ m.id }}" data-user="{{ m.user_id }}">
+          {% if m.is_pinned %}<span class="pin-indicator"><i class="bi bi-pin-angle-fill"></i></span>{% endif %}
+          {% if m.reply_to_id %}<div class="reply-ref">返信: #{{ m.reply_to_id }}</div>{% endif %}
+          <div class="content">
+            {{ m.content | nl2br }}
+            {% if m.link_preview_json %}
+              {% set lp = m.link_preview_json | safe | loads %}
+              {% if lp.url %}
+                <a class="link-preview-card" target="_blank" rel="noopener" href="{{ lp.url }}">
+                  {% if lp.image %}<img src="{{ lp.image }}" class="link-preview-thumb" alt="preview">{% endif %}
+                  <div>
+                    <div class="link-preview-title">{{ lp.title or lp.url }}</div>
+                    {% if lp.description %}<div class="link-preview-desc">{{ lp.description }}</div>{% endif %}
+                  </div>
+                </a>
+              {% endif %}
+            {% endif %}
+          </div>
+          <div class="meta">{{ m.timestamp | format_datetime('%H:%M') }}{% if m.edited_at %} <span>(編集)</span>{% endif %}</div>
+          <div class="reaction-bar" id="greactions-{{ m.id }}"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="input-area">
+      <form id="groupSendForm" class="mb-0">
+        <div class="input-group">
+          <input type="text" id="groupMessageInput" class="form-control" placeholder="メッセージ..." autocomplete="off">
+          <div class="input-group-append">
+            <button class="btn btn-primary" type="submit">送信</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+<script>
+const ROOM_ID = {{ room.id | tojson }};
+const CURRENT_UID = {{ current_user.id | tojson }};
+const socket = io();
+function esc(t){return (t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));}
+const area = document.getElementById('messagesArea');
+const form = document.getElementById('groupSendForm');
+const input = document.getElementById('groupMessageInput');
+let currentPopup = null;
+form.addEventListener('submit', e=>{e.preventDefault(); if(!input.value.trim()) return; socket.emit('send_group_message',{room_id:ROOM_ID,message:input.value}); input.value='';});
+
+// Actions popup (edit/delete/pin/react/reply/forward)
+area.addEventListener('click', e=>{
+  const bubble = e.target.closest('.bubble');
+  if(!bubble) return;
+  const mid = bubble.dataset.mid; const uid = bubble.dataset.user;
+  if(currentPopup) currentPopup.remove();
+  const pop = document.createElement('div'); pop.className='message-actions-pop';
+  pop.innerHTML = `<button data-a="reply">返信</button><button data-a="react">👍</button><button data-a="pin">ピン</button>${parseInt(uid)==CURRENT_UID?'<button data-a="edit">編集</button><button data-a="del">削除</button>':''}<button data-a="fwd">転送</button>`;
+  bubble.appendChild(pop); currentPopup=pop;
+  pop.addEventListener('click', ev=>{
+    const act = ev.target.dataset.a; if(!act) return;
+    if(act==='edit'){const nt=prompt('新しい内容:'); if(nt) socket.emit('edit_group_message',{message_id:mid,content:nt});}
+    else if(act==='del'){ if(confirm('削除しますか?')) socket.emit('delete_group_message',{message_id:mid}); }
+    else if(act==='pin'){ socket.emit('pin_group_message',{message_id:mid}); }
+    else if(act==='react'){ const r=prompt('リアクション'); if(r) socket.emit('react_group_message',{message_id:mid,reaction:r}); }
+    else if(act==='reply'){ const c=prompt('返信内容:'); if(c) socket.emit('reply_group_message',{parent_id:mid,content:c}); }
+    else if(act==='fwd'){ const rid=prompt('転送先ルームID:'); if(rid) socket.emit('forward_group_message',{src_id:mid,to_room_id:parseInt(rid)}); }
+  });
+});
+
+document.addEventListener('click', e=>{ if(!e.target.closest('.message-actions-pop') && !e.target.closest('.bubble')) { if(currentPopup) currentPopup.remove(); }});
+
+// Socket handlers for group
+function appendGroupMessage(p, extraHtml=''){
+  let contentHtml = esc(p.content).replace(/\n/g,'<br>');
+  if(p.link_preview_json){ try { const lp=JSON.parse(p.link_preview_json); if(lp.url){ const img=lp.image?`<img src="${lp.image}" class="link-preview-thumb" alt="preview">`:''; const desc=lp.description?`<div class=\"link-preview-desc\">${esc(lp.description)}</div>`:''; contentHtml += `\n<a class=\"link-preview-card\" href=\"${lp.url}\" target=\"_blank\" rel=\"noopener noreferrer\">${img}<div><div class=\"link-preview-title\">${esc(lp.title||lp.url)}</div>${desc}</div></a>`; } } catch(e){} }
+  const row = document.createElement('div'); row.id = 'gmsg-'+p.id; row.className='message-row'+(p.user_id==CURRENT_UID?' mine':''); row.dataset.mid=p.id; row.dataset.user=p.user_id;
+  row.innerHTML = `<div class=\"bubble\" data-mid=\"${p.id}\" data-user=\"${p.user_id}\">${p.is_pinned?'<span class=\"pin-indicator\"><i class=\"bi bi-pin-angle-fill\"></i></span>':''}${p.reply_to_id?`<div class=\"reply-ref\">返信: #${p.reply_to_id}</div>`:''}<div class=\"content\">${contentHtml}</div><div class=\"meta\">${new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div><div class=\"reaction-bar\" id=\"greactions-${p.id}\"></div></div>`;
+  area.appendChild(row); area.scrollTop = area.scrollHeight;
+}
+
+socket.on('new_group_message', p=>{ if(p.room_id==ROOM_ID) appendGroupMessage(p); });
+socket.on('group_message_edited', p=>{ const c=document.querySelector(`#gmsg-${p.id} .content`); if(c){ c.firstChild && (c.firstChild.nodeType===3); c.innerHTML = p.content.replace(/\n/g,'<br>'); const meta=document.querySelector(`#gmsg-${p.id} .meta`); if(meta && !meta.innerHTML.includes('編集')) meta.innerHTML += ' <span>(編集)</span>'; }});
+socket.on('group_message_deleted', p=>{ const c=document.querySelector(`#gmsg-${p.id} .content`); if(c){ c.innerHTML='<em class="text-muted">(削除されました)</em>'; }});
+socket.on('group_message_pinned', p=>{ const pin=document.querySelector(`#gmsg-${p.id} .pin-indicator`); if(pin) pin.classList.toggle('d-none', !p.is_pinned); else if(p.is_pinned){ const bubble=document.querySelector(`#gmsg-${p.id} .bubble`); if(bubble){ const sp=document.createElement('span'); sp.className='pin-indicator'; sp.innerHTML='<i class="bi bi-pin-angle-fill"></i>'; bubble.appendChild(sp);} }});
+socket.on('group_reaction_updated', p=>{ const bar=document.getElementById('greactions-'+p.message_id); if(!bar) return; const key=p.reaction+'-'+p.user_id; const ex=[...bar.querySelectorAll('.reaction-item')].find(n=>n.dataset.key===key); if(ex && p.removed) ex.remove(); else if(!ex && !p.removed){ const span=document.createElement('span'); span.className='reaction-item'; span.dataset.key=key; span.textContent=p.reaction; bar.appendChild(span);} });
+socket.on('group_message_replied', p=>{ if(p.room_id==ROOM_ID) appendGroupMessage(p); });
+socket.on('group_message_forwarded', p=>{ if(p.room_id==ROOM_ID) appendGroupMessage({...p, content:'(転送)\n'+p.content}); });
+socket.on('group_message_read', p=>{ /* TODO: 既読表示UI */ });
+</script>
+</body>
+</html>

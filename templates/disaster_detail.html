@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>災害情報詳細 - TMHKchat</title>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body class="container mt-4">
+  <a href="{{ url_for('main_app') }}">&laquo; 戻る</a>
+  <h2 class="my-3">災害情報 詳細</h2>
+  <div class="card mb-3">
+    <div class="card-header">最新ヘッドライン</div>
+    <div class="card-body">
+      {% if disaster %}
+        <pre style="white-space: pre-wrap;">{{ disaster.data }}</pre>
+        <p class="text-muted"><small>更新: {{ disaster.timestamp }}</small></p>
+      {% else %}
+        <p>データがありません。</p>
+      {% endif %}
+    </div>
+  </div>
+  <p><a class="btn btn-outline-danger" href="https://www.jma.go.jp/bosai/warning/#area_type=offices&area_code=130000" target="_blank" rel="noopener">気象庁 警報・注意報ページ</a></p>
+  <div class="alert alert-warning">将来: 警報/注意報の一覧展開や地域切替を追加予定。</div>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>🃏 ババ抜き - TMHKchat</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background:#121212; color:#f5f5f5; margin:0; padding:15px; }
+    h1 { text-align:center; }
+    .container { max-width:1000px; margin:0 auto; }
+    .flex { display:flex; gap:12px; flex-wrap:wrap; }
+    .panel { background:#1f1f1f; padding:15px; border-radius:10px; flex:1; min-width:260px; position:relative; }
+    .panel h2 { margin-top:0; font-size:1.05rem; border-bottom:1px solid #333; padding-bottom:4px; }
+    .players { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
+    .player-card { background:#272727; border:1px solid #333; padding:8px 10px; border-radius:8px; position:relative; }
+    .player-card.current { border-color:#ffd700; box-shadow:0 0 8px rgba(255,215,0,0.6); }
+    .player-card.finished { opacity:0.55; }
+    .badge { display:inline-block; padding:2px 6px; font-size:0.7rem; border-radius:4px; background:#444; margin-left:6px; }
+    .loser { background:#b71c1c !important; color:#fff; }
+    .rank-label { background:#1565c0; color:#fff; padding:2px 6px; font-size:0.65rem; border-radius:3px; margin-left:4px; }
+    button { cursor:pointer; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .log { max-height:240px; overflow:auto; font-size:0.8rem; background:#111; padding:6px 8px; border-radius:6px; line-height:1.3; }
+    .highlight { color:#ffd700; }
+    .draw-targets { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+    .target-btn { background:#333; color:#eee; padding:5px 10px; border:1px solid #444; border-radius:6px; font-size:0.75rem; }
+    .target-btn:hover { background:#444; }
+    .disabled { opacity:0.5; pointer-events:none; }
+    .joker-flag { position:absolute; top:4px; right:6px; font-size:0.65rem; background:#9c27b0; color:#fff; padding:2px 5px; border-radius:4px; }
+    .footer { text-align:center; margin-top:25px; font-size:0.75rem; color:#888; }
+    .hand-view { margin-top:8px; display:flex; gap:4px; flex-wrap:wrap; }
+    .card { background:#fafafa; color:#222; border-radius:4px; padding:4px 6px; font-size:0.7rem; border:1px solid #ccc; }
+    .card.joker { background:#8e24aa; color:#fff; font-weight:bold; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🃏 ババ抜き <small style="font-size:0.5em; color:#bbb;">(Old Maid)</small></h1>
+  <div class="actions" style="margin-bottom:10px;">
+    <input id="room_id" placeholder="ルームID(任意)" style="padding:6px 8px; background:#1f1f1f; color:#ddd; border:1px solid #444; border-radius:6px;" />
+    <button id="join_btn">参加</button>
+    <button id="start_btn" disabled>開始</button>
+    <button id="draw_btn" disabled>引く</button>
+    <button id="back_btn" onclick="location.href='/games'">ハブへ戻る</button>
+  </div>
+  <div class="flex">
+    <div class="panel" style="flex:1.4;">
+      <h2>プレイヤー</h2>
+      <div id="players" class="players"></div>
+    </div>
+    <div class="panel" style="flex:1;">
+      <h2>状態</h2>
+      <div>現在ターン: <span id="current_player" class="highlight">-</span></div>
+      <div>手番候補(引き先): <div id="draw_targets" class="draw-targets"></div></div>
+      <div style="margin-top:8px;">あなたの手札:</div>
+      <div id="my_hand" class="hand-view"></div>
+      <div style="margin-top:10px; font-size:0.75rem; color:#aaa;">※ 手札は「配った直後」と「引いた直後」のみ更新用にサーバ拡張予定（現段階では枚数のみ表示）。</div>
+    </div>
+    <div class="panel" style="flex:1;">
+      <h2>ログ</h2>
+      <div id="log" class="log"></div>
+      <h2 style="margin-top:12px;">最終順位</h2>
+      <ol id="ranking" style="padding-left:18px; font-size:0.8rem;"></ol>
+    </div>
+  </div>
+  <div class="footer">TMHKchat Babanuki Prototype v1</div>
+</div>
+<script>
+  const socket = io();
+  let joined = false;
+  let gameStarted = false;
+  let myUserId = null; // 必要なら /api/me 等を後で追加
+  let currentRoom = null;
+  let lastState = null;
+
+  function addLog(msg){
+    const el = document.getElementById('log');
+    const line = document.createElement('div');
+    const ts = new Date().toLocaleTimeString();
+    line.textContent = '['+ts+'] ' + msg;
+    el.prepend(line);
+  }
+
+  function renderPlayers(state){
+    const wrap = document.getElementById('players');
+    wrap.innerHTML = '';
+    state.players.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'player-card';
+      if (p.id === state.current_player) div.classList.add('current');
+      if (p.finished) div.classList.add('finished');
+      div.innerHTML = `<strong>${p.username}</strong><br>枚数: ${p.hand_count}`;
+      wrap.appendChild(div);
+    });
+    document.getElementById('current_player').textContent = state.current_player ?? '-';
+  }
+
+  function renderDrawTargets(state){
+    const tgtWrap = document.getElementById('draw_targets');
+    tgtWrap.innerHTML = '';
+    if (!gameStarted || state.current_player === null) return;
+    if (state.current_player !== myUserId) return; // 自分のターンのみ
+    const order = state.players.map(p=>p.id);
+    const selfIdx = order.indexOf(myUserId);
+    if (selfIdx === -1) return;
+    for (let step=1; step<order.length+1; step++){
+      const cand = order[(selfIdx + step) % order.length];
+      const pdata = state.players.find(p=>p.id===cand);
+      if (pdata && !pdata.finished && cand !== myUserId){
+        const b = document.createElement('button');
+        b.className = 'target-btn';
+        b.textContent = pdata.username + ' ('+pdata.hand_count+')';
+        b.onclick = ()=> doDraw();
+        tgtWrap.appendChild(b);
+        break; // 最初の生存者
+      }
+    }
+  }
+
+  function renderRanking(final){
+    const ol = document.getElementById('ranking');
+    ol.innerHTML = '';
+    const entries = Object.entries(final).sort((a,b)=>a[1]-b[1]);
+    entries.forEach(([name, rank]) => {
+      const li = document.createElement('li');
+      li.textContent = `${rank}位: ${name}`;
+      ol.appendChild(li);
+    });
+  }
+
+  function doJoin(){
+    const rid = document.getElementById('room_id').value.trim();
+    socket.emit('join_babanuki_game', {room_id: rid || undefined});
+  }
+  function doStart(){
+    if (!currentRoom) return;
+    socket.emit('start_babanuki_game', {room_id: currentRoom});
+  }
+  function doDraw(){
+    if (!currentRoom) return;
+    socket.emit('babanuki_draw_request', {room_id: currentRoom});
+  }
+
+  document.getElementById('join_btn').onclick = doJoin;
+  document.getElementById('start_btn').onclick = doStart;
+  document.getElementById('draw_btn').onclick = doDraw;
+
+  socket.on('connect', () => { addLog('接続しました'); });
+  socket.on('disconnect', () => { addLog('切断されました'); });
+
+  socket.on('game_joined', (data) => {
+    if (data.game_type !== 'babanuki') return;
+    currentRoom = data.room_id;
+    joined = true;
+    document.getElementById('start_btn').disabled = false;
+    addLog('ルーム参加: ' + currentRoom);
+  });
+
+  socket.on('babanuki_game_started', (data) => {
+    gameStarted = true;
+    addLog('ゲーム開始: 先手プレイヤーID=' + data.current_player);
+    document.getElementById('draw_btn').disabled = false;
+  });
+
+  socket.on('babanuki_state_update', (state) => {
+    lastState = state;
+    renderPlayers(state);
+    renderDrawTargets(state);
+    if (state.last_action) addLog(state.last_action);
+  });
+
+  socket.on('babanuki_game_end', (data) => {
+    addLog('ゲーム終了! 敗者: ' + data.loser);
+    renderRanking(data.final_ranking);
+    document.getElementById('draw_btn').disabled = true;
+    document.getElementById('start_btn').disabled = true;
+  });
+
+  socket.on('babanuki_error', (err) => {
+    addLog('エラー: ' + (err.message || '不明'));
+  });
+</script>
+</body>
+</html>

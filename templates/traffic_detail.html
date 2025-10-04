@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>交通情報詳細 - TMHKchat</title>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body class="container mt-4">
+  <a href="{{ url_for('main_app') }}">&laquo; 戻る</a>
+  <h2 class="my-3">交通情報 詳細</h2>
+  <div class="card mb-3">
+    <div class="card-header">最新要約</div>
+    <div class="card-body">
+      {% if traffic %}
+        <pre style="white-space: pre-wrap;">{{ traffic.data }}</pre>
+        <p class="text-muted"><small>更新: {{ traffic.timestamp }}</small></p>
+      {% else %}
+        <p>データがありません。</p>
+      {% endif %}
+    </div>
+  </div>
+  <p><a class="btn btn-outline-primary" href="https://transit.yahoo.co.jp/" target="_blank" rel="noopener">Yahoo!路線情報を開く</a></p>
+  <div class="alert alert-info">将来: 差分履歴・通知設定 UI をここに追加予定。</div>
+</body>
+</html>

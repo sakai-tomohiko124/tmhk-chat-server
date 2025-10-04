@@ -11,20 +11,49 @@
 <div class="container mt-4">
     <a href="{{ url_for('main_app') }}" class="btn btn-secondary mb-3"><i class="bi bi-arrow-left"></i> 戻る</a>
     <h1 class="mb-4"><i class="bi bi-controller"></i> ミニゲームハブ</h1>
+        {% if penalty_stage >= 5 %}
+        <div class="alert alert-danger" style="border:2px solid #ff4d4f">
+                <strong>機能制限中 (Stage {{ penalty_stage }})</strong><br>
+                ペナルティ段階によりゲームの新規作成・参加が制限されています。<br>
+                再開するにはサポート方針に従い改善期間をお待ちください。
+        </div>
+        <script>
+            // ボタン無効化
+            document.addEventListener('DOMContentLoaded', ()=>{
+                document.querySelectorAll('.play-game-btn').forEach(b=>{b.disabled=true; b.classList.add('disabled');});
+            });
+        </script>
+        {% endif %}
 
     <h2 class="h4">ゲームを選択</h2>
     <div class="list-group mb-5">
         {% for game in games %}
-        <div class="list-group-item">
-            <div class="d-flex w-100 justify-content-between">
-                <h5 class="mb-1"><i class="{{ game.icon }}"></i> {{ game.name }}</h5>
-                <button class="btn btn-primary play-game-btn" data-game-type="{{ game.id }}">プレイ</button>
+            {% if game.id in ['daifugo','babanuki'] %}
+            <div class="list-group-item">
+                <div class="d-flex w-100 justify-content-between align-items-center">
+                    <h5 class="mb-1"><i class="{{ game.icon }}"></i> {{ game.name }}</h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-primary play-game-btn" data-game-type="{{ game.id }}">プレイ</button>
+                        {% if game.id == 'babanuki' %}
+                        <a href="{{ url_for('game_room', room_id='babanuki_direct') }}" class="btn btn-sm btn-outline-secondary">直接部屋</a>
+                        {% endif %}
+                    </div>
+                </div>
+                <p class="mb-1">{{ game.description }}</p>
+                <small>推奨人数: {{ game.players }}</small>
             </div>
-            <p class="mb-1">{{ game.description }}</p>
-            <small>プレイ人数: {{ game.players }}</small>
-        </div>
+            {% endif %}
         {% endfor %}
     </div>
+
+    {# 将来再開予定ゲーム (非表示) ----------------------------------------------------------------
+    <div class="list-group mb-5" style="display:none">
+        <!-- じゃんけん / クイズ / あみだくじ 等: 一時的に提供停止中。テンプレ保持のみ -->
+        <div class="list-group-item disabled">(休止中) じゃんけん</div>
+        <div class="list-group-item disabled">(休止中) クイズ</div>
+        <div class="list-group-item disabled">(休止中) あみだくじ</div>
+    </div>
+    #}
 
     {% if saved_games %}
     <h2 class="h4">中断したゲーム</h2>
@@ -40,7 +69,57 @@
         {% endfor %}
     </div>
     {% endif %}
+<!-- 既存のgames_hub.htmlに以下を追加 -->
 
+<!-- 特別セクション: ガチミニゲームパック -->
+<div class="card mb-4" style="border: 3px solid gold; background: linear-gradient(135deg, #fff9c4, #fffef7);">
+    <div class="card-header text-center" style="background: linear-gradient(135deg, #ff6b6b, #ffd93d); color: white;">
+        <h4 class="mb-0">
+            <i class="bi bi-gem"></i> 🎮 ガチミニゲームパック
+            <span class="badge badge-light text-dark ml-2">1000pt</span>
+        </h4>
+        <p class="mb-0">本格的な12種類のゲームが楽しめる！1プレイ20pt獲得！</p>
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <h5 class="text-primary">12種類</h5>
+                <small>多彩なゲーム</small>
+            </div>
+            <div class="col-md-3">
+                <h5 class="text-success">20pt</h5>
+                <small>1プレイで獲得</small>
+            </div>
+            <div class="col-md-3">
+                <h5 class="text-warning">ランキング</h5>
+                <small>全国対戦</small>
+            </div>
+            <div class="col-md-3">
+                <h5 class="text-info">実績</h5>
+                <small>豊富な称号</small>
+            </div>
+        </div>
+        
+        <div class="text-center mt-3">
+            {% if current_user.is_admin or has_game_pack(current_user.id) or is_trial_period(current_user.id) %}
+                <a href="{{ url_for('premium_games') }}" class="btn btn-success btn-lg">
+                    <i class="bi bi-play-fill"></i> ガチミニゲームで遊ぶ
+                </a>
+            {% else %}
+                <a href="{{ url_for('games_purchase') }}" class="btn btn-warning btn-lg">
+                    <i class="bi bi-cart-plus"></i> 1000ptで購入する
+                </a>
+                <p class="mt-2 text-muted">現在のポイント: {{ current_user.points }}pt</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 既存の無料ゲーム一覧の前に「無料お試しゲーム」として表示 -->
+<h4 class="mb-3">🆓 無料お試しゲーム</h4>
+<p class="text-muted mb-3">以下のゲームは誰でも無料で楽しめます（ポイント獲得なし）</p>
+
+<!-- 既存のゲーム一覧をそのまま使用 -->
     <h2 class="h4">🏆 ランキング</h2>
     <table class="table table-striped">
         <thead class="thead-dark">
@@ -96,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('エラーが発生しました。');
+                alert('エラーが発生しました。ペナルティによる制限の可能性があります。');
             });
         });
     });

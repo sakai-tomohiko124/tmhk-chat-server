@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ガチミニゲームパック - TMHKchat</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .welcome-header {
+            background: linear-gradient(135deg, #ff6b6b, #ffd93d);
+            color: white;
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        .game-card {
+            border-radius: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: 2px solid transparent;
+            height: 100%;
+        }
+        .game-card:hover {
+            transform: translateY(-5px);
+            border-color: #ffd93d;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        .stats-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .play-btn {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .play-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+            color: white;
+        }
+        .achievement-badge {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            color: #333;
+            border-radius: 20px;
+            padding: 5px 15px;
+            margin: 5px;
+            display: inline-block;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .category-section {
+            margin-bottom: 40px;
+        }
+        .category-header {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .rank-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            border-radius: 15px;
+            padding: 5px 10px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        .points-earned {
+            color: #28a745;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-4" style="max-width: 1200px;">
+        <a href="{{ url_for('games_hub') }}" class="btn btn-light mb-4">
+            <i class="bi bi-arrow-left"></i> ゲームハブに戻る
+        </a>
+
+        <!-- ウェルカムヘッダー -->
+        <div class="welcome-header">
+            <h1><i class="bi bi-gem"></i> ガチミニゲームパック</h1>
+            <p class="mb-0">12種類の本格ゲームをお楽しみください！ 1プレイで20ポイント獲得のチャンス！</p>
+        </div>
+
+        <div class="row">
+            <!-- メインゲームエリア -->
+            <div class="col-lg-8">
+                <!-- カードゲーム -->
+                <div class="category-section">
+                    <div class="category-header">
+                        <h3><i class="bi bi-suit-spade-fill"></i> カードゲーム</h3>
+                        <p class="mb-0">戦略と運が試される本格カードゲーム</p>
+                    </div>
+                    <div class="row">
+                        {% for game_key, game_info in games.items() if game_info.category == 'card' %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card game-card" onclick="playGame('{{ game_key }}')">
+                                <div class="card-body text-center position-relative">
+                                    {% if game_stats[game_key].play_count > 0 %}
+                                        <div class="rank-badge">{{ game_stats[game_key].play_count }}回プレイ</div>
+                                    {% endif %}
+                                    <i class="{{ game_info.icon }} text-primary" style="font-size: 2.5rem;"></i>
+                                    <h5 class="mt-2">{{ game_info.name }}</h5>
+                                    <p class="text-muted small">{{ game_info.players }}</p>
+                                    {% if game_stats[game_key].best_score > 0 %}
+                                        <p class="mb-2"><small>ベストスコア: <strong>{{ game_stats[game_key].best_score }}</strong></small></p>
+                                    {% endif %}
+                                    <button class="play-btn btn btn-sm" onclick="event.stopPropagation(); playGame('{{ game_key }}')">
+                                        <i class="bi bi-play-fill"></i> プレイ
+                                    </button>
+                                    <div class="points-earned mt-2">+20pt/プレイ</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- 知識・教養ゲーム -->
+                <div class="category-section">
+                    <div class="category-header">
+                        <h3><i class="bi bi-book"></i> 知識・教養ゲーム</h3>
+                        <p class="mb-0">学びながら楽しめる知的ゲーム</p>
+                    </div>
+                    <div class="row">
+                        {% for game_key, game_info in games.items() if game_info.category == 'knowledge' %}
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <div class="card game-card" onclick="playGame('{{ game_key }}')">
+                                <div class="card-body text-center position-relative">
+                                    {% if game_stats[game_key].play_count > 0 %}
+                                        <div class="rank-badge">{{ game_stats[game_key].play_count }}回</div>
+                                    {% endif %}
+                                    <i class="{{ game_info.icon }} text-info" style="font-size: 2rem;"></i>
+                                    <h6 class="mt-2">{{ game_info.name }}</h6>
+                                    <p class="text-muted small">{{ game_info.players }}</p>
+                                    {% if game_stats[game_key].best_score > 0 %}
+                                        <p class="mb-2"><small>ベスト: {{ game_stats[game_key].best_score }}</small></p>
+                                    {% endif %}
+                                    <button class="play-btn btn btn-sm" onclick="event.stopPropagation(); playGame('{{ game_key }}')">
+                                        <i class="bi bi-play-fill"></i> プレイ
+                                    </button>
+                                    <div class="points-earned mt-2">+20pt</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- その他のゲーム -->
+                <div class="category-section">
+                    <div class="category-header">
+                        <h3><i class="bi bi-controller"></i> その他のゲーム</h3>
+                        <p class="mb-0">運と頭脳を使ったユニークなゲーム</p>
+                    </div>
+                    <div class="row">
+                        {% for game_key, game_info in games.items() if game_info.category in ['luck', 'memory', 'brain'] %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card game-card" onclick="playGame('{{ game_key }}')">
+                                <div class="card-body text-center position-relative">
+                                    {% if game_stats[game_key].play_count > 0 %}
+                                        <div class="rank-badge">{{ game_stats[game_key].play_count }}回</div>
+                                    {% endif %}
+                                    <i class="{{ game_info.icon }} text-warning" style="font-size: 2.5rem;"></i>
+                                    <h5 class="mt-2">{{ game_info.name }}</h5>
+                                    <p class="text-muted small">{{ game_info.players }}</p>
+                                    {% if game_stats[game_key].best_score > 0 %}
+                                        <p class="mb-2"><small>ベストスコア: <strong>{{ game_stats[game_key].best_score }}</strong></small></p>
+                                    {% endif %}
+                                    <button class="play-btn btn btn-sm" onclick="event.stopPropagation(); playGame('{{ game_key }}')">
+                                        <i class="bi bi-play-fill"></i> プレイ
+                                    </button>
+                                    <div class="points-earned mt-2">+20pt/プレイ</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- サイドバー -->
+            <div class="col-lg-4">
+                <!-- プレイヤー統計 -->
+                <div class="stats-card">
+                    <h5><i class="bi bi-graph-up"></i> あなたの統計</h5>
+                    {% set total_plays = game_stats.values() | map(attribute='play_count') | sum %}
+                    {% set total_earned = total_plays * 20 %}
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-primary">{{ total_plays }}</h4>
+                            <small>総プレイ回数</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">{{ total_earned }}pt</h4>
+                            <small>獲得ポイント</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近の実績 -->
+                {% if recent_achievements %}
+                <div class="stats-card">
+                    <h5><i class="bi bi-trophy"></i> 最近の実績</h5>
+                    {% for achievement in recent_achievements %}
+                    <div class="achievement-badge">
+                        <i class="bi bi-award"></i> {{ achievement.achievement_type|title }}
+                        {% if achievement.game_name %}
+                            <br><small>{{ achievement.game_name }}</small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- 全体ランキング -->
+                {% if rankings %}
+                <div class="stats-card">
+                    <h5><i class="bi bi-trophy-fill"></i> 全体ランキング</h5>
+                    {% for rank in rankings[:5] %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <strong>{{ rank.username }}</strong>
+                            <small class="text-muted d-block">{{ rank.game_type }}</small>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-weight-bold">{{ rank.rank_points }}pt</div>
+                            <small class="text-success">{{ rank.wins }}勝{{ rank.losses }}敗</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- イベント情報 -->
+                <div class="stats-card">
+                    <h5><i class="bi bi-calendar-event"></i> イベント情報</h5>
+                    <div class="alert alert-info">
+                        <h6>週末大会開催中！</h6>
+                        <p class="mb-2">今週末はポイント2倍イベント実施中です！</p>
+                        <small>参加するだけで特別な実績がもらえます</small>
+                    </div>
+                </div>
+
+                <!-- クイックアクション -->
+                <div class="stats-card">
+                    <h5><i class="bi bi-lightning"></i> クイックアクション</h5>
+                    <button class="btn btn-primary btn-block mb-2" onclick="randomGame()">
+                        <i class="bi bi-shuffle"></i> ランダムゲーム
+                    </button>
+                    <button class="btn btn-success btn-block mb-2" onclick="dailyChallenge()">
+                        <i class="bi bi-calendar-check"></i> デイリーチャレンジ
+                    </button>
+                    <button class="btn btn-info btn-block" onclick="showRankings()">
+                        <i class="bi bi-list-ol"></i> 詳細ランキング
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function playGame(gameType) {
+            window.location.href = `/games/play/${gameType}`;
+        }
+
+        function randomGame() {
+            const games = {{ games.keys() | list | tojson }};
+            const randomGame = games[Math.floor(Math.random() * games.length)];
+            playGame(randomGame);
+        }
+
+        function dailyChallenge() {
+            alert('デイリーチャレンジ機能は近日公開予定です！');
+        }
+
+        function showRankings() {
+            alert('詳細ランキング機能は近日公開予定です！');
+        }
+    </script>
+</body>
+</html>

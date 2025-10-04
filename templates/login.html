@@ -2,10 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>ログイン - TMHKchat</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/mobile_auth.css') }}" rel="stylesheet">
     <style>
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -13,59 +14,55 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px 0;
+            margin: 0;
         }
-        .account-selector-container {
+        /* --- ローディング画面のスタイル --- */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 1;
+            transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+            visibility: visible;
+        }
+        #loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        #loading-screen h1 {
+            color: #ecf0f1;
+            font-size: 4em;
+        }
+
+        /* --- ログインコンテナのスタイル --- */
+        .login-container {
             max-width: 450px;
             width: 100%;
+            margin: 0 auto;
             background: white;
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            padding: 40px;
+            overflow: hidden;
+            opacity: 0; /* 最初は非表示 */
+            transition: opacity 0.5s ease-in;
+        }
+        .login-container.visible { opacity: 1; }
+        .login-header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 30px 20px;
             text-align: center;
         }
-        .account-card {
-            display: flex;
-            align-items: center;
-            padding: 15px;
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        .account-card:hover {
-            background-color: #f8f9fa;
-            border-color: #dee2e6;
-        }
-        .account-card img {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            margin-right: 15px;
-        }
-        .account-card .info {
-            text-align: left;
-        }
-        .account-card .info .username {
-            font-weight: bold;
-            margin-bottom: 0;
-        }
-        .account-card .info .account-type {
-            font-size: 0.9em;
-            color: #6c757d;
-        }
-        .remove-account-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            border: none;
-            background: none;
-            color: #adb5bd;
-            font-size: 1.2em;
-        }
-        .password-modal-body {
-            text-align: left;
+        .login-body {
+            padding: 30px;
         }
         .password-toggle-container {
             position: relative;
@@ -79,104 +76,162 @@
             background: none;
             cursor: pointer;
             color: #6c757d;
+            z-index: 5;
+        }
+        .account-type-card {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+        .account-type-card.selected {
+            border-color: #4f46e5;
+            background: #f0f1ff;
+            box-shadow: 0 0 10px rgba(79, 70, 229, 0.2);
+        }
+        #account-type-select-wrapper-login { display:none; }
+        @media (max-width:576px){
+            .account-type-cards-wrapper-login { display:none; }
+            #account-type-select-wrapper-login { display:block; }
         }
     </style>
 </head>
 <body>
-    <div class="account-selector-container">
-        <h2 class="mb-2">TMHKchat</h2>
-        <h4 class="mb-4 fw-normal">どのアカウントでログインしますか？</h4>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <div id="account-list">
-            {% for account in saved_accounts %}
-            <div class="account-card" data-bs-toggle="modal" data-bs-target="#passwordModal" data-user-id="{{ account.id }}" data-username="{{ account.username }}">
-                <img src="{{ url_for('static', filename='assets/uploads/profile_images/' + account.profile_image if 'user' in account.profile_image else 'assets/images/' + account.profile_image) }}" alt="avatar">
-                <div class="info">
-                    <p class="username">{{ account.username }}</p>
-                    <small class="account-type text-muted">{{ account.account_type_name }} アカウント</small>
-                </div>
-                <a href="{{ url_for('forget_account', user_id=account.id) }}" class="remove-account-btn" title="このアカウントを一覧から削除">
-                    <i class="bi bi-x-circle"></i>
-                </a>
-            </div>
-            {% endfor %}
-        </div>
-        <div class="d-grid gap-2 mt-4">
-            <!-- ★★★ このリンクを追加 ★★★ -->
-            <a href="{{ url_for('login_classic') }}" class="btn btn-primary">
-                <i class="bi bi-person-check-fill"></i> 別のアカウントでログイン
-            </a>
-            <a href="{{ url_for('register') }}" class="btn btn-outline-primary">
-                <i class="bi bi-person-plus-fill"></i> 新規アカウント作成
-            </a>
-        </div>
+    <!-- ローディング画面 -->
+    <div id="loading-screen">
+        <h1>TMHKchatへようこそ</h1>
     </div>
 
-    <!-- パスワード入力モーダル -->
-    <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="passwordModalLabel">パスワードを入力</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form method="POST" action="{{ url_for('login_with_id') }}">
-                    <div class="modal-body password-modal-body">
-                        <p><strong><span id="modal-username"></span></strong>としてログインします。</p>
-                        <input type="hidden" id="modal-user-id" name="user_id">
-                        <div class="mb-3">
-                            <label for="password" class="form-label">パスワード</label>
-                            <div class="password-toggle-container">
-                                <input type="password" class="form-control" id="password" name="password" required>
-                                <button type="button" class="password-toggle" onclick="togglePassword('password')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
+    <!-- ログインフォーム -->
+    <div class="container">
+        <div class="login-container" id="login-form-container">
+            <div class="login-header">
+                <h2><i class="bi bi-box-arrow-in-right"></i></h2>
+                <h4>アカウントにログイン</h4>
+            </div>
+            
+            <div class="login-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <!-- 一般ユーザーログインセクション -->
+                <div class="mb-3">
+                    <h6 class="text-muted mb-3">ログイン</h6>
+                </div>
+
+                <form method="POST" action="{{ url_for('root') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">アカウントタイプ</label>
+                        <div class="account-type-cards-wrapper-login">
+                            {% for key, value in account_types.items() %}
+                            <div class="account-type-card" data-type="{{ key }}" onclick="selectAccountType('{{ key }}')">
+                                <input type="radio" name="account_type" value="{{ key }}" id="type-{{ key }}" {% if key == selected_account_type %}checked{% endif %} style="display: none;">
+                                <div class="fw-bold">{{ value['name'] }}</div>
+                                <small class="text-muted">{{ value['name'] }}用アカウント</small>
+                            </div>
+                            {% endfor %}
                         </div>
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="remember" name="remember" checked>
-                            <label class="form-check-label" for="remember">ログイン状態を保持する</label>
+                        <div id="account-type-select-wrapper-login" class="mt-2">
+                            <select class="form-select" id="account_type_select_login" onchange="selectAccountType(this.value)">
+                                {% for key, value in account_types.items() %}
+                                  <option value="{{ key }}" {% if key == selected_account_type %}selected{% endif %}>{{ value['name'] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <small class="text-muted">画面幅によってカード表示 / プルダウン表示が自動切替。</small>
+                    </div>
+                    
+                    <div class="mb-3" id="custom-account-name-wrapper-login" style="display: none;">
+                        <label for="custom_account_name" class="form-label">コミュニティ名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="custom_account_name" name="custom_account_name"
+                               placeholder="参加しているコミュニティ名を入力">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="login_id" class="form-label">メールアドレスまたはユーザー名</label>
+                        <input type="text" class="form-control" id="login_id" name="login_id" required placeholder="メールアドレスまたはユーザー名" autocomplete="username">
+                        <small class="text-muted">どちらを使っても同じパスワードでログインできます。</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">パスワード</label>
+                        <div class="password-toggle-container">
+                            <input type="password" class="form-control" id="password" name="password" required placeholder="パスワード" autocomplete="current-password">
+                            <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                                <i class="bi bi-eye"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                        <button type="submit" class="btn btn-primary">ログイン</button>
+                    
+                    <div class="form-check mb-4">
+                        <input type="checkbox" class="form-check-input" id="remember" name="remember" checked>
+                        <label class="form-check-label" for="remember">ログイン状態を保持する</label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 mb-3 tap-friendly-btn">
+                        <i class="bi bi-box-arrow-in-right"></i> ログイン
+                    </button>
+                    
+                    <div class="text-center">
+                        <a href="{{ url_for('register') }}" class="text-decoration-none">新規アカウント作成はこちら</a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const passwordModal = document.getElementById('passwordModal');
-        passwordModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const userId = button.getAttribute('data-user-id');
-            const username = button.getAttribute('data-username');
+        // --- 画面切り替えロジック ---
+                (function(){
+                    const loadingScreen = document.getElementById('loading-screen');
+                    const loginContainer = document.getElementById('login-form-container');
+                    const reveal = () => {
+                        if(!loadingScreen.classList.contains('hidden')) {
+                            loadingScreen.classList.add('hidden');
+                            loginContainer.classList.add('visible');
+                            document.body.style.overflowY = 'auto';
+                        }
+                    };
+                    window.addEventListener('load', ()=>{ setTimeout(reveal, 200); });
+                    // 最悪 1.2 秒で強制表示 (フォント遅延対策)
+                    setTimeout(reveal, 1200);
+                })();
 
-            const modalUsername = passwordModal.querySelector('#modal-username');
-            const modalUserIdInput = passwordModal.querySelector('#modal-user-id');
-            
-            modalUsername.textContent = username;
-            modalUserIdInput.value = userId;
-        });
-
+        // --- フォームのロジック ---
+        function selectAccountType(type) {
+            document.querySelectorAll('.account-type-card').forEach(card => card.classList.remove('selected'));
+            const card = document.querySelector('.account-type-card[data-type="' + type + '"]');
+            if(card) card.classList.add('selected');
+            const radio = document.getElementById('type-' + type);
+            if(radio) radio.checked = true;
+            const sel = document.getElementById('account_type_select_login');
+            if(sel && sel.value !== type) sel.value = type;
+            const customInputWrapper = document.getElementById('custom-account-name-wrapper-login');
+            const customInput = document.getElementById('custom_account_name');
+            if (type === 'other') {
+                customInputWrapper.style.display = 'block';
+                customInput.required = true;
+            } else {
+                customInputWrapper.style.display = 'none';
+                customInput.required = false;
+            }
+        }
         function togglePassword(inputId) {
             const passwordInput = document.getElementById(inputId);
             const toggleIcon = passwordInput.nextElementSibling.querySelector('i');
-            
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
                 toggleIcon.className = 'bi bi-eye-slash';
@@ -185,6 +240,13 @@
                 toggleIcon.className = 'bi bi-eye';
             }
         }
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectedRadio = document.querySelector('input[name="account_type"]:checked');
+            if (selectedRadio) { selectedRadio.closest('.account-type-card').classList.add('selected'); }
+            const sel = document.getElementById('account_type_select_login');
+            if(sel && selectedRadio && sel.value !== selectedRadio.value) sel.value = selectedRadio.value;
+            if(selectedRadio) selectAccountType(selectedRadio.value);
+        });
     </script>
 </body>
 </html>

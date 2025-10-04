@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>使い方 - TMHKchat</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .tutorial-card {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+        .tutorial-card:hover {
+            transform: translateY(-5px);
+        }
+        .step-number {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        .restart-btn {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            border: none;
+            color: white;
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .restart-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-4" style="max-width: 900px;">
+        <a href="{{ url_for('main_app') }}" class="btn btn-light mb-4">
+            <i class="bi bi-arrow-left"></i> アプリに戻る
+        </a>
+
+        <div class="text-center mb-5">
+            <h1 class="text-white mb-3">
+                <i class="bi bi-book"></i> TMHKchat の使い方
+            </h1>
+            <p class="text-white-50">アプリの機能について詳しく説明します</p>
+        </div>
+
+        <div class="row">
+            <!-- ステップ1: 基本機能 -->
+            <div class="col-md-6 mb-4">
+                <div class="card tutorial-card h-100">
+                    <div class="card-body text-center">
+                        <div class="step-number mx-auto">1</div>
+                        <i class="bi bi-chat-heart-fill feature-icon text-primary"></i>
+                        <h5>基本機能</h5>
+                        <p class="text-muted">
+                            最初から使える機能：<br>
+                            ・メッセージ送信<br>
+                            ・プロフィール設定<br>
+                            ・友達追加・管理<br>
+                            ・Keepメモ<br>
+                            <br>
+                            <small class="text-warning">
+                                ※既読表示はまだ使えません
+                            </small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ステップ2: ポイントシステム -->
+            <div class="col-md-6 mb-4">
+                <div class="card tutorial-card h-100">
+                    <div class="card-body text-center">
+                        <div class="step-number mx-auto">2</div>
+                        <i class="bi bi-gem feature-icon text-warning"></i>
+                        <h5>ポイントシステム</h5>
+                        <p class="text-muted">
+                            ポイントの貯め方：<br>
+                            ・メッセージ送信: 10pt<br>
+                            ・毎日ログイン: 20pt<br>
+                            ・友達追加: 30pt<br>
+                            ・タイムライン投稿: 25pt<br>
+                            ・プロフィール更新: 15pt
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ステップ3: 機能の購入 -->
+            <div class="col-md-6 mb-4">
+                <div class="card tutorial-card h-100">
+                    <div class="card-body text-center">
+                        <div class="step-number mx-auto">3</div>
+                        <i class="bi bi-shop feature-icon text-success"></i>
+                        <h5>機能の購入</h5>
+                        <p class="text-muted">
+                            50ポイントで購入できる機能：<br>
+                            ・既読表示・送信削除<br>
+                            ・ミュート通知・定型文<br>
+                            ・AIチャット・ミニゲーム<br>
+                            ・スタンプ・通話機能<br>
+                            ・タイムライン投稿 など
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ステップ4: 特典について -->
+            <div class="col-md-6 mb-4">
+                <div class="card tutorial-card h-100">
+                    <div class="card-body text-center">
+                        <div class="step-number mx-auto">4</div>
+                        <i class="bi bi-gift-fill feature-icon text-info"></i>
+                        <h5>お得な特典</h5>
+                        <p class="text-muted">
+                            🎉 新規登録から1週間は<br>
+                            　 全機能使い放題！<br>
+                            🎉 管理者は常に全機能利用可能<br>
+                            🎉 一度購入した機能は永続利用<br>
+                            <br>
+                            この期間に色々試してみてください♪
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ステップ5: タブ操作 -->
+            <div class="col-md-6 mb-4">
+                <div class="card tutorial-card h-100">
+                    <div class="card-body text-center">
+                        <div class="step-number mx-auto">5</div>
+                        <i class="bi bi-layout-three-columns feature-icon text-purple"></i>
+                        <h5>画面の使い方</h5>
+                        <p class="text-muted">
+                            下部のタブで画面を切り替え：<br>
+                            ・ホーム: プロフィール・サービス<br>
+                            ・トーク: 友達とのメッセージ<br>
+                            ・タイムライン: 投稿・情報<br>
+                            ・その他: 設定・管理画面
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ステップ6: 困った時は -->
+            <div class="col-md-6 mb-4">
+                <div class="card tutorial-card h-100">
+                    <div class="card-body text-center">
+                        <div class="step-number mx-auto">6</div>
+                        <i class="bi bi-question-circle-fill feature-icon text-secondary"></i>
+                        <h5>困った時は</h5>
+                        <p class="text-muted">
+                            ・設定画面の「使い方」から<br>
+                            　いつでもこの説明を見直せます<br>
+                            ・管理者にお気軽にお問い合わせください<br>
+                            ・ポイントショップで機能を確認できます
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 機能一覧表 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-check"></i> 全機能一覧
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-success">基本機能（無料）</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-check-circle text-success"></i> メッセージ送信</li>
+                            <li><i class="bi bi-check-circle text-success"></i> プロフィール設定</li>
+                            <li><i class="bi bi-check-circle text-success"></i> 友達管理</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Keepメモ</li>
+                            <li><i class="bi bi-check-circle text-success"></i> ログイン機能</li>
+                        </ul>
+
+                        <h6 class="text-warning mt-3">コミュニケーション系（50pt）</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-gem text-warning"></i> 既読表示</li>
+                            <li><i class="bi bi-gem text-warning"></i> 送信削除</li>
+                            <li><i class="bi bi-gem text-warning"></i> ミュート通知</li>
+                            <li><i class="bi bi-gem text-warning"></i> 自動送信</li>
+                            <li><i class="bi bi-gem text-warning"></i> 定型文</li>
+                            <li><i class="bi bi-gem text-warning"></i> スタンプ</li>
+                        </ul>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h6 class="text-info">エンターテイメント（50pt）</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-gem text-info"></i> ミニゲーム</li>
+                            <li><i class="bi bi-gem text-info"></i> クイズ機能</li>
+                            <li><i class="bi bi-gem text-info"></i> AIチャット</li>
+                            <li><i class="bi bi-gem text-info"></i> タイムライン投稿</li>
+                        </ul>
+
+                        <h6 class="text-danger mt-3">プレミアム機能（50pt）</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-gem text-danger"></i> 音声通話</li>
+                            <li><i class="bi bi-gem text-danger"></i> ビデオ通話</li>
+                            <li><i class="bi bi-gem text-danger"></i> ファイル送信</li>
+                            <li><i class="bi bi-gem text-danger"></i> リンク送信</li>
+                            <li><i class="bi bi-gem text-danger"></i> 写真・動画無制限</li>
+                            <li><i class="bi bi-gem text-danger"></i> カスタマイズ機能</li>
+                            <li><i class="bi bi-gem text-danger"></i> WEBスクレイピング</li>
+                            <li><i class="bi bi-gem text-danger"></i> アラーム機能</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- チュートリアル再開ボタン -->
+        <div class="text-center mt-4">
+            <a href="{{ url_for('reset_tutorial') }}" class="restart-btn btn" 
+               onclick="return confirm('チュートリアルを最初からやり直しますか？')">
+                <i class="bi bi-arrow-clockwise"></i> チュートリアルをやり直す
+            </a>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

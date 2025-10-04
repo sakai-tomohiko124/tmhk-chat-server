@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 友披露 超豪華版 🔥 - TMHKchat Premium Games</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            color: white;
+            animation: backgroundShift 10s ease-in-out infinite alternate;
+        }
+        
+        @keyframes backgroundShift {
+            0% { background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); }
+            100% { background: linear-gradient(135deg, #f093fb 0%, #667eea 50%, #764ba2 100%); }
+        }
+        
+        .game-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            padding: 25px;
+            box-shadow: 0 15px 50px rgba(31, 38, 135, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .game-header {
+            text-align: center;
+            margin-bottom: 25px;
+            position: relative;
+        }
+        
+        .game-title {
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700);
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: titleGlow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes titleGlow {
+            0% { text-shadow: 3px 3px 6px rgba(255, 215, 0, 0.5); }
+            100% { text-shadow: 5px 5px 15px rgba(255, 215, 0, 0.8); }
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            color: #ffd700;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+        
+        .access-info, .cpu-info {
+            background: rgba(255, 255, 255, 0.25);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        
+        /* ルール設定パネル */
+        .rule-settings {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(255, 215, 0, 0.5);
+        }
+        
+        .rule-settings-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ffd700;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .rule-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .rule-category {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .category-title {
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .rule-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .rule-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(3px);
+        }
+        
+        .rule-label {
+            flex: 1;
+            font-size: 0.95em;
+            cursor: pointer;
+        }
+        
+        .rule-description {
+            font-size: 0.8em;
+            color: #ccc;
+            margin-left: 5px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 25px;
+            background: #ccc;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-switch.active {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 21px;
+            height: 21px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(25px);
+        }
+        
+        /* ゲームテーブル */
+        .game-table {
+            display: grid;
+            grid-template-areas: 
+                "cpu4 cpu3 cpu2 cpu1"
+                ". field field ."
+                ". player player .";
+            grid-template-rows: 1fr 2fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 15px;
+            height: 620px;
+            margin: 25px 0;
+        }
+        
+        .player-area {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        
+        .player-area:hover {
+            border-color: rgba(255, 215, 0, 0.6);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+        }
+        
+        .player-area.player { 
+            grid-area: player; 
+            background: rgba(255, 255, 255, 0.25);
+        }
+    .player-area.cpu1 { grid-area: cpu1; }
+    .player-area.cpu2 { grid-area: cpu2; }
+    .player-area.cpu3 { grid-area: cpu3; }
+    .player-area.cpu4 { grid-area: cpu4; }
+        
+        .field-area {
+            grid-area: field;
+            background: radial-gradient(circle, rgba(34, 139, 34, 0.4) 0%, rgba(0, 100, 0, 0.3) 100%);
+            border-radius: 25px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid #ffd700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .field-area::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 215, 0, 0.1), transparent);
+            animation: fieldShimmer 3s linear infinite;
+        }
+        
+        @keyframes fieldShimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
+        .current-turn {
+            background: rgba(255, 215, 0, 0.4);
+            border: 3px solid #ffd700;
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+            animation: turnPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes turnPulse {
+            0%, 100% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.6); }
+            50% { box-shadow: 0 0 35px rgba(255, 215, 0, 0.9); }
+        }
+        
+        .hand-cards {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            z-index: 10;
+        }
+        
+        .card {
+            width: 45px;
+            height: 65px;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            border: 2px solid #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            color: #333;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .card:hover::before {
+            opacity: 1;
+        }
+        
+        .card:hover {
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+        
+        .card.red { 
+            color: #e74c3c; 
+            border-color: #e74c3c;
+        }
+        .card.black { 
+            color: #2c3e50; 
+            border-color: #2c3e50;
+        }
+        .card.selected {
+            transform: translateY(-12px) scale(1.1);
+            border-color: #ffd700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            background: linear-gradient(145deg, #fff9c4, #ffed4e);
+        }
+        
+        .card.card-back {
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            color: white;
+            border-color: #2980b9;
+        }
+        
+        .card.joker {
+            background: linear-gradient(145deg, #9b59b6, #8e44ad);
+            color: white;
+            border-color: #8e44ad;
+            animation: jokerGlow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes jokerGlow {
+            0% { box-shadow: 0 4px 12px rgba(155, 89, 182, 0.5); }
+            100% { box-shadow: 0 4px 20px rgba(155, 89, 182, 0.8); }
+        }
+        
+        .card.special-effect {
+            animation: specialCardEffect 1s ease-in-out;
+        }
+        
+        @keyframes specialCardEffect {
+            0%, 100% { transform: scale(1); }
+            25% { transform: scale(1.2) rotate(5deg); }
+            75% { transform: scale(1.2) rotate(-5deg); }
+        }
+        
+        .player-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #ffd700;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+        
+        .card-count {
+            font-size: 0.95em;
+            margin-top: 8px;
+            color: #ddd;
+        }
+        /* 残枚数警告段階 */
+        .card-count.warn-low { color: #ffb347; font-weight: bold; }
+        .card-count.critical { color: #ff5252; font-weight: bold; animation: pulseCritical 0.9s ease-in-out infinite; }
+        @keyframes pulseCritical {
+            0%,100% { transform: scale(1); text-shadow: 0 0 6px rgba(255,82,82,0.7); }
+            50% { transform: scale(1.12); text-shadow: 0 0 14px rgba(255,82,82,1); }
+        }
+        /* 枚数減少時フラッシュ */
+        .card-count.flash-drop { animation: dropFlash .6s ease; }
+        @keyframes dropFlash {
+            0% { background: rgba(255,255,255,0.0); }
+            30% { background: rgba(255,255,255,0.35); color:#222; }
+            100% { background: rgba(255,255,255,0.0); }
+        }
+        
+        .rank-badge {
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transform: rotate(10deg);
+        }
+        
+        .rank-daifugo { 
+            background: linear-gradient(45deg, #ffd700, #ffed4e); 
+            color: #333; 
+            animation: crownGlow 2s ease-in-out infinite alternate;
+        }
+        .rank-fugo { background: linear-gradient(45deg, #3498db, #2980b9); }
+        .rank-heimin { background: linear-gradient(45deg, #95a5a6, #7f8c8d); }
+        .rank-binbo { background: linear-gradient(45deg, #e67e22, #d35400); }
+        .rank-daihinmin { background: linear-gradient(45deg, #e74c3c, #c0392b); }
+        /* 新しい友披露称号カラー */
+        .rank-tomohiro { background: linear-gradient(45deg, #ffdc73, #ffae00); color:#452c00; animation: crownGlow 2s ease-in-out infinite alternate; }
+        .rank-sugohiro { background: linear-gradient(45deg, #8e2de2, #4a00e0); }
+        .rank-futsuhiro { background: linear-gradient(45deg, #607d8b, #455a64); }
+        .rank-yabahiro { background: linear-gradient(45deg, #ff7043, #d84315); }
+        .rank-zakohiro { background: linear-gradient(45deg, #9e9e9e, #616161); }
+        /* 汎用 (古いクラスとの後方互換保持) */
+
+        /* カード出現アニメーション */
+        .card.entering { animation: cardEnter .45s ease; }
+        @keyframes cardEnter {
+            0% { transform: translateY(18px) scale(.85); opacity:0; }
+            60% { transform: translateY(-6px) scale(1.05); opacity:1; }
+            100% { transform: translateY(0) scale(1); opacity:1; }
+        }
+        
+        @keyframes crownGlow {
+            0% { box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5); }
+            100% { box-shadow: 0 4px 25px rgba(255, 215, 0, 0.8); }
+        }
+        
+        .field-cards {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            z-index: 20;
+        }
+        
+        .game-actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin: 20px 0;
+            z-index: 30;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            transform: translate(-50%, -50%);
+        }
+        
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-play { 
+            background: linear-gradient(45deg, #27ae60, #2ecc71); 
+            color: white; 
+        }
+        .btn-pass { 
+            background: linear-gradient(45deg, #e74c3c, #c0392b); 
+            color: white; 
+        }
+        .btn-primary { 
+            background: linear-gradient(45deg, #3498db, #2980b9); 
+            color: white; 
+        }
+        .btn-secondary {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+            color: white;
+        }
+        .btn-gold {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #333;
+        }
+        
+        .btn:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+        .btn:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+            transform: none;
+        }
+        
+        .last-play {
+            color: #ffd700;
+            font-weight: bold;
+            margin: 15px 0;
+            text-align: center;
+            font-size: 1.1em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 30;
+        }
+
+        /* 状態バッジ */
+        .status-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 6px;
+        }
+        .status-badge {
+            background: rgba(0,0,0,0.45);
+            border: 1px solid rgba(255,255,255,0.25);
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.65rem;
+            letter-spacing: .5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+        .status-badge.revolution { background: linear-gradient(45deg,#e74c3c,#c0392b); }
+        .status-badge.eleven { background: linear-gradient(45deg,#f39c12,#d35400); }
+        .status-badge.suit-lock { background: linear-gradient(45deg,#8e44ad,#5e3377); }
+
+        /* トースト通知 */
+        #toastContainer {
+            position: fixed;
+            bottom: 18px;
+            right: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 4000;
+            max-width: 300px;
+        }
+        .toast-msg {
+            background: rgba(30,30,30,0.85);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            border: 1px solid rgba(255,255,255,0.12);
+            opacity: 0;
+            transform: translateY(10px) scale(.95);
+            animation: toastIn .35s forwards ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .toast-msg::before {
+            content: '';
+            position: absolute;
+            left:0;top:0;bottom:0;width:4px;
+            background: linear-gradient(180deg,#ffd700,#ff8c00);
+            border-radius:4px 0 0 4px;
+        }
+        @keyframes toastIn { to { opacity:1; transform: translateY(0) scale(1);} }
+        @keyframes toastOut { to { opacity:0; transform: translateY(-5px) scale(.9);} }
+        
+        .special-effects {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            display: none;
+            text-align: center;
+        }
+        
+        .revolution-indicator {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 30px 50px;
+            border-radius: 20px;
+            font-size: 2.5em;
+            font-weight: bold;
+            animation: revolutionPulse 1s ease-in-out infinite;
+            box-shadow: 0 15px 40px rgba(231, 76, 60, 0.5);
+        }
+        
+        .special-rule-effect {
+            background: linear-gradient(45deg, #9b59b6, #8e44ad);
+            color: white;
+            padding: 25px 40px;
+            border-radius: 15px;
+            font-size: 2em;
+            font-weight: bold;
+            animation: specialPulse 1s ease-in-out infinite;
+            box-shadow: 0 10px 30px rgba(155, 89, 182, 0.5);
+        }
+        
+        @keyframes revolutionPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+            50% { transform: translate(-50%, -50%) scale(1.1) rotate(2deg); }
+        }
+        
+        @keyframes specialPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
+        }
+        
+        .game-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 25px 0;
+            flex-wrap: wrap;
+        }
+        
+        .pass-counter {
+            text-align: center;
+            margin: 15px 0;
+            font-size: 1em;
+            color: #ddd;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            z-index: 30;
+        }
+        
+        .winner-announcement {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #333;
+            padding: 50px;
+            border-radius: 25px;
+            text-align: center;
+            font-size: 1.8em;
+            font-weight: bold;
+            box-shadow: 0 20px 60px rgba(255, 215, 0, 0.6);
+            z-index: 2000;
+            display: none;
+            animation: winnerEntry 0.5s ease-out;
+        }
+        
+        @keyframes winnerEntry {
+            0% { 
+                opacity: 0; 
+                transform: translate(-50%, -50%) scale(0.5); 
+            }
+            100% { 
+                opacity: 1; 
+                transform: translate(-50%, -50%) scale(1); 
+            }
+        }
+        
+        .card-exchange {
+            background: rgba(255, 215, 0, 0.3);
+            border: 3px solid #ffd700;
+            border-radius: 20px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+            display: none;
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.4);
+        }
+        
+        .exchange-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .point-requirement {
+            background: rgba(231, 76, 60, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.3);
+        }
+        
+        .hide-settings {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 15px;
+            }
+            
+            .game-title {
+                font-size: 2em;
+            }
+            
+            .rule-categories {
+                grid-template-columns: 1fr;
+            }
+            
+            .game-table {
+                grid-template-areas: 
+                    "cpu3"
+                    "cpu2" 
+                    "cpu1"
+                    "field"
+                    "player";
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(5, auto);
+                height: auto;
+            }
+            
+            .card {
+                width: 35px;
+                height: 50px;
+                font-size: 0.7em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1 class="game-title">🔥 友披露 超豪華版 🔥</h1>
+            <div class="subtitle">✨ 固定特殊ルール版（カスタマイズ不可） ✨</div>
+            <div class="access-info" id="accessInfo">
+                <span id="accessMessage">ゲームに接続中...</span>
+            </div>
+            <div class="cpu-info" id="cpuInfo" style="display: none;">
+                <span id="cpuDifficulty">CPU難易度: 初心者</span>
+            </div>
+        </div>
+        
+        <div class="point-requirement" id="pointRequirement" style="display: none;">
+            ⚠️ 超豪華版友披露を無制限で楽しむには5000ポイントが必要です！ ⚠️<br>
+            現在のポイント: <span id="currentPoints">0</span>pt / 必要ポイント: 5000pt
+        </div>
+        
+        <!-- 固定ルール表示パネル -->
+        <div class="rule-settings" id="ruleSettings">
+            <div class="rule-settings-title">📜 固定特殊ルール一覧（変更不可）</div>
+            <div style="line-height:1.6; font-size:0.9em;">
+                <ul style="padding-left:18px;">
+                    <li><strong>基本強さ:</strong> 3 < 4 < ... < A < 2 < ウソヒロ / トモヒロウで数値反転 / 11出現時さらに <code>3最強・2最弱</code> 再補正 (案B)</li>
+                    <li><strong>スペード3返し:</strong> ウソヒロ直後最初の手番のみ ウソヒロ を超えて出せる</li>
+                    <li><strong>5トバヒロ:</strong> 次プレイヤーを飛ばす</li>
+                    <li><strong>7ワタヒロ:</strong> 現在回転方向の次手番へ手札1枚（モーダル選択）を強制渡し</li>
+                    <li><strong>8オワヒロ:</strong> 場流し＆同プレイヤー続行</li>
+                    <li><strong>9バラヒロ:</strong> 全員の残手札を集め再配布（場状態は維持）</li>
+                    <li><strong>10ステヒロ:</strong> 自分の手札から任意1枚（モーダル選択）を完全除外</li>
+                    <li><strong>11ギャクヒロ:</strong> 場が流れるまで 3最強 / 2最弱（トモヒロウ後にも再適用）</li>
+                    <li><strong>12ドクヒロ:</strong> 宣言数字の<strong>全コピー</strong>を各プレイヤー捨てる（数字をモーダル選択）</li>
+                    <li><strong>13マワヒロ:</strong> 回転方向反転（多重でトグル）</li>
+                    <li><strong>ウソヒロ:</strong> 任意数字化（3枚+ウソヒロ でトモヒロウ可）</li>
+                    <li><strong>トモヒロウ条件:</strong> 同数4枚 または 3枚+ウソヒロ</li>
+                    <li><strong>シバヒロ:</strong> 同マーク2回継続でロック。場流しで解除</li>
+                    <li><strong>順位称号:</strong> 大富豪 / 富豪 / 平民 / 貧民 / 大貧民（5人固定・CPU補充）</li>
+                    <li><strong>交換:</strong> 2戦目以降 大貧民→最強2枚提出 / 大富豪→任意2枚返却 / 貧民↔富豪(1枚)</li>
+                    <li><strong>効果解決優先度:</strong> トモヒロウ判定 → トモヒロウ返し → 11ギャクヒロ → シバヒロ適用 → その他効果演出</li>
+                </ul>
+                <div style="margin-top:10px; font-size:0.8em; opacity:0.9;">※ この画面ではルール編集はできません。特殊効果用モーダルは該当カード出し時に自動表示予定。</div>
+            </div>
+        </div>
+        
+        <div class="game-controls">
+            <button class="btn btn-gold" id="startGameBtn" onclick="startGame()">🚀 ゲーム開始</button>
+            <button class="btn-secondary" onclick="location.href='/premium_games'">📋 ゲーム一覧に戻る</button>
+            <button class="btn btn-danger" id="retireBtn" style="display:none;" onclick="retireGame()">🏳️ リタイア</button>
+        </div>
+        
+        <div class="card-exchange" id="cardExchange">
+            <div class="exchange-title">💎 カード交換フェーズ</div>
+            <div class="exchange-instruction" id="exchangeInstruction">
+                友披露として最強カード2枚を大貧民に渡してください
+            </div>
+            <div class="hand-cards" id="exchangeHand"></div>
+            <button class="btn btn-primary" onclick="confirmExchange()" id="confirmExchangeBtn">✅ 交換確定</button>
+        </div>
+        
+        <div class="game-table" id="gameTable" style="display: none;">
+            <div class="player-area cpu4" id="cpu4Area">
+                <div class="player-name">🤖 CPU4</div>
+                <div class="rank-badge rank-heimin" id="cpu4Rank">平民</div>
+                <div class="hand-cards" id="cpu4Hand"></div>
+                <div class="card-count" id="cpu4Count">13枚</div>
+            </div>
+            <div class="player-area cpu3" id="cpu3Area">
+                <div class="player-name">🤖 CPU3</div>
+                <div class="rank-badge rank-heimin" id="cpu3Rank">平民</div>
+                <div class="hand-cards" id="cpu3Hand"></div>
+                <div class="card-count" id="cpu3Count">13枚</div>
+            </div>
+            
+            <div class="player-area cpu2" id="cpu2Area">
+                <div class="player-name">🤖 CPU2</div>
+                <div class="rank-badge rank-heimin" id="cpu2Rank">平民</div>
+                <div class="hand-cards" id="cpu2Hand"></div>
+                <div class="card-count" id="cpu2Count">13枚</div>
+            </div>
+            
+            <div class="player-area cpu1" id="cpu1Area">
+                <div class="player-name">🤖 CPU1</div>
+                <div class="rank-badge rank-heimin" id="cpu1Rank">平民</div>
+                <div class="hand-cards" id="cpu1Hand"></div>
+                <div class="card-count" id="cpu1Count">13枚</div>
+            </div>
+            
+            <div class="field-area">
+                <div class="last-play" id="lastPlay">🎮 ゲーム開始！</div>
+                <div class="field-cards" id="fieldCards"></div>
+                <div class="status-badges" id="statusBadges"></div>
+                <div id="turnInfo">🎯 手番: 待機中</div>
+                <div class="pass-counter" id="passCounter">⏭️ パス: 0人</div>
+                                <div id="logPanel" style="margin-top:12px;background:rgba(0,0,0,0.35);padding:10px 12px;border-radius:12px;max-height:160px;overflow:auto;font-size:0.75em;line-height:1.4;border:1px solid rgba(255,255,255,0.25);">
+                                    <div style="font-weight:bold;color:#ffd700;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+                                        <span>📜 直近ログ</span>
+                                        <button onclick="clearClientLog()" style="background:#444;color:#eee;border:none;padding:2px 6px;border-radius:6px;cursor:pointer;font-size:0.7em;">Clear</button>
+                                    </div>
+                                    <div id="logEntries"></div>
+                                </div>
+            </div>
+            
+            <div class="player-area player" id="playerArea">
+                <div class="player-name">👤 あなた</div>
+                <div class="rank-badge rank-heimin" id="playerRank">平民</div>
+                <div class="hand-cards" id="playerHand"></div>
+                <div class="card-count" id="playerCount">13枚</div>
+                <div class="game-actions">
+                    <button class="btn btn-play" onclick="playCards()" id="playBtn">🚀 出す</button>
+                    <button class="btn btn-pass" onclick="passPlay()" id="passBtn">⏭️ パス</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="special-effects" id="specialEffects">
+        <div class="revolution-indicator" id="revolutionIndicator">
+            🔥 革命発生！ 🔥
+        </div>
+        <div class="special-rule-effect" id="specialRuleEffect">
+            ✨ 特殊効果発動！ ✨
+        </div>
+    </div>
+    
+    <div class="winner-announcement" id="winnerAnnouncement">
+        <div id="winnerText">🎉 ゲーム終了！ 🎉</div>
+        <div id="finalRanks" style="margin: 25px 0; font-size: 1.2em;"></div>
+        <button class="btn btn-gold" onclick="hideWinnerAnnouncement()" style="margin-top: 25px;">🔄 次のゲーム</button>
+    </div>
+
+    <script>
+        const socket = io();
+        let roomId = null;
+        let gameStarted = false;
+        let selectedCards = [];
+        let currentPlayer = null;
+        let isMyTurn = false;
+        let revolutionActive = false;
+        let cardExchangeMode = false;
+        let hasUnlimitedAccess = false;
+        let currentPoints = 0;
+        
+        // 固定ルール（サーバ送信用マーカー）
+        const gameRules = {
+            spade3: true,
+            fiveSkip: true,
+            sevenGive: true,
+            eightCut: true,
+            nineShuffle: true,
+            tenDiscard: true,
+            elevenBack: true,      // 11効果: UI内説明は補正ルール
+            queenBomber: true,
+            kingExchange: true,    // 実装予定: ここでは 13 をリバース扱いへマッピング予定
+            jokerTransform: true,
+            revolutionReverse: true,
+            sequence: false,       // 固定仕様では階段未採用なら false に調整可
+            suitLock: true,
+            daifugoFall: true
+        };
+        
+        const ranks = {
+            'daifugo': { name: '🏆 友披露', class: 'rank-daifugo' },
+            'fugo': { name: '💎 富豪', class: 'rank-fugo' },
+            'heimin': { name: '👤 平民', class: 'rank-heimin' },
+            'binbo': { name: '💧 貧民', class: 'rank-binbo' },
+            'daihinmin': { name: '💀 大貧民', class: 'rank-daihinmin' }
+        };
+        
+        const specialRuleMessages = {
+            spade3: '♠️3 でウソヒロを破壊！',
+            fiveSkip: '5️⃣ トバヒロ！',
+            sevenGive: '7️⃣ ワタヒロ！',
+            eightCut: '8️⃣ オワヒロ！',
+            nineShuffle: '9️⃣ バラヒロ！',
+            tenDiscard: '🔟 ステヒロ！',
+            elevenBack: '🔙 ギャクヒロ！',
+            queenBomber: '💣 ドクヒロ！',
+            kingExchange: '🔄 ターン交換！',
+            jokerTransform: '✨ ウソヒロ変身！',
+            revolutionReverse: '🔄 トモヒロウ返し！',
+            sequence: '📈 階段発動！',
+            suitLock: '🔒 シバヒロ！'
+        };
+        
+        window.onload = function() {
+            const username = '{{ session.username }}';
+            if (username && username !== 'None') {
+                joinGame();
+            } else {
+                document.getElementById('accessMessage').textContent = 'ログインが必要です';
+            }
+        };
+        
+        function joinGame() {
+            socket.emit('join_game', {
+                game_type: 'daifugo',
+                room_id: 'daifugo_' + '{{ session.username }}'
+            });
+        }
+        
+        // 旧カスタマイズ関連関数は固定ルール化により無効化
+        function toggleRuleSettings() {
+            // ルール編集不可: トグル UI 廃止
+            alert('このバージョンではルールは固定です');
+        }
+        
+        function startGame() {
+            if (!roomId) {
+                alert('まずゲームに参加してください');
+                return;
+            }
+            
+            // 5000ポイント制限チェック
+            if (!hasUnlimitedAccess && currentPoints < 5000) {
+                alert(`超豪華版を無制限で楽しむには5000ポイントが必要です！\n現在のポイント: ${currentPoints}pt`);
+                return;
+            }
+            
+            socket.emit('start_daifugo_game', {
+                room_id: roomId,
+                rules: gameRules
+            });
+            
+            document.getElementById('startGameBtn').disabled = true;
+            document.getElementById('ruleSettings').style.display = 'none';
+            const rb = document.getElementById('retireBtn');
+            if(rb){ rb.style.display='inline-block'; rb.disabled = false; }
+        }
+
+        function retireGame(){
+            if(!roomId){ return; }
+            if(!confirm('途中でリタイアして CPU に引き継ぎますか？')) return;
+            const rb = document.getElementById('retireBtn');
+            if(rb) rb.disabled = true;
+            socket.emit('daifugo_retire', { room_id: roomId });
+        }
+        
+        function selectCard(card, index) {
+            if (!isMyTurn || cardExchangeMode) return;
+            
+            const cardElement = card;
+            if (cardElement.classList.contains('selected')) {
+                cardElement.classList.remove('selected');
+                selectedCards = selectedCards.filter(i => i !== index);
+            } else {
+                cardElement.classList.add('selected');
+                selectedCards.push(index);
+            }
+            
+            // カードに特殊効果アニメーション
+            cardElement.classList.add('special-effect');
+            setTimeout(() => {
+                cardElement.classList.remove('special-effect');
+            }, 1000);
+        }
+        
+        function playCards() {
+            if (selectedCards.length === 0) {
+                alert('カードを選択してください');
+                return;
+            }
+            
+            socket.emit('daifugo_play_cards', {
+                room_id: roomId,
+                card_indices: selectedCards
+            });
+            
+            // 選択をクリア
+            document.querySelectorAll('.card.selected').forEach(card => {
+                card.classList.remove('selected');
+            });
+            selectedCards = [];
+        }
+        
+        function passPlay() {
+            socket.emit('daifugo_pass', {
+                room_id: roomId
+            });
+        }
+        
+        function updatePlayerRank(playerId, rank) {
+            const rankBadge = document.getElementById(playerId + 'Rank');
+            if (rankBadge && ranks[rank]) {
+                rankBadge.textContent = ranks[rank].name;
+                rankBadge.className = 'rank-badge ' + ranks[rank].class;
+            }
+        }
+        
+        function showSpecialEffect(effectType, message) {
+            const effects = document.getElementById('specialEffects');
+            const indicator = document.getElementById(effectType === 'revolution' ? 'revolutionIndicator' : 'specialRuleEffect');
+            
+            if (effectType !== 'revolution') {
+                indicator.innerHTML = message || '✨ 特殊効果発動！ ✨';
+            }
+            
+            effects.style.display = 'block';
+            indicator.style.display = 'block';
+            
+            setTimeout(() => {
+                effects.style.display = 'none';
+                indicator.style.display = 'none';
+            }, 3000);
+        }
+        
+        function startCardExchange(instruction) {
+            cardExchangeMode = true;
+            document.getElementById('cardExchange').style.display = 'block';
+            document.getElementById('exchangeInstruction').textContent = instruction;
+            renderExchangeHand();
+        }
+        
+        function renderExchangeHand() {
+            // 交換用手札の描画（実装予定）
+            const exchangeHand = document.getElementById('exchangeHand');
+            exchangeHand.innerHTML = '<div style="color: #ffd700; font-size: 1.2em;">💎 手札から交換するカードを選択してください</div>';
+        }
+        
+        function confirmExchange() {
+            if (selectedCards.length === 0) {
+                alert('交換するカードを選択してください');
+                return;
+            }
+            
+            socket.emit('daifugo_card_exchange', {
+                room_id: roomId,
+                card_indices: selectedCards
+            });
+            
+            cardExchangeMode = false;
+            document.getElementById('cardExchange').style.display = 'none';
+            selectedCards = [];
+        }
+        
+        function updateTurnInfo(player, passCount) {
+            document.getElementById('turnInfo').innerHTML = `🎯 手番: <span style="color: #ffd700;">${player}</span>`;
+            document.getElementById('passCounter').innerHTML = `⏭️ パス: <span style="color: #e74c3c;">${passCount}</span>人`;
+            
+            // 手番プレイヤーをハイライト
+            const areas = ['playerArea', 'cpu1Area', 'cpu2Area', 'cpu3Area', 'cpu4Area'];
+            areas.forEach(area => {
+                const el = document.getElementById(area);
+                if(el) el.classList.remove('current-turn');
+            });
+            
+            if (player === '{{ session.username }}') {
+                document.getElementById('playerArea').classList.add('current-turn');
+                isMyTurn = true;
+            } else {
+                isMyTurn = false;
+                // CPUエリアのハイライト
+                if (player === 'CPU1') document.getElementById('cpu1Area').classList.add('current-turn');
+                else if (player === 'CPU2') document.getElementById('cpu2Area').classList.add('current-turn');
+                else if (player === 'CPU3') document.getElementById('cpu3Area').classList.add('current-turn');
+                else if (player === 'CPU4') document.getElementById('cpu4Area').classList.add('current-turn');
+            }
+        }
+        
+        function showFinalRanks(finalRankMap) {
+            const announcement = document.getElementById('winnerAnnouncement');
+            const finalRanks = document.getElementById('finalRanks');
+            // 順位 -> 新称号マッピング
+            const titleMap = {
+                1: 'トモヒロウ',
+                2: 'スゴヒロウ',
+                3: 'フツヒロ',
+                4: 'ヤバヒロ',
+                5: 'ザコヒロ'
+            };
+            let rankText = '🏆 最終順位 🏆\n\n';
+            // finalRankMap 形式: { username: rankNumber }
+            Object.entries(finalRankMap).forEach(([player, rankNum]) => {
+                const title = titleMap[rankNum] || `${rankNum}位`;
+                rankText += `${player}: ${title} (${rankNum}位)\n`;
+                // CPUバッジ反映 (簡易: 名前一致)
+                if(player.startsWith('CPU')){
+                    const id = player.toLowerCase() + 'Rank';
+                    const el = document.getElementById(id);
+                    if(el){
+                        el.setAttribute('data-prev-title', el.textContent || '');
+                        el.textContent = title;
+                        el.className = 'rank-badge ' + _rankClassFromTitle(title);
+                        el.title = `称号: ${title} (前: ${el.getAttribute('data-prev-title')})`;
+                    }
+                } else if(player === '{{ session.username }}') {
+                    const el = document.getElementById('playerRank');
+                    if(el){
+                        el.setAttribute('data-prev-title', el.textContent || '');
+                        el.textContent = title;
+                        el.className = 'rank-badge ' + _rankClassFromTitle(title);
+                        el.title = `称号: ${title} (前: ${el.getAttribute('data-prev-title')})`;
+                    }
+                }
+            });
+            finalRanks.innerHTML = rankText.replace(/\n/g, '<br>');
+            announcement.style.display = 'block';
+        }
+
+        function _rankClassFromTitle(title){
+            // タイトル→CSSクラス (必要に応じて色分け)
+            switch(title){
+                case 'トモヒロウ': return 'rank-tomohiro';
+                case 'スゴヒロウ': return 'rank-sugohiro';
+                case 'フツヒロ': return 'rank-futsuhiro';
+                case 'ヤバヒロ': return 'rank-yabahiro';
+                case 'ザコヒロ': return 'rank-zakohiro';
+            }
+            return 'rank-futsuhiro';
+        }
+        
+        function hideWinnerAnnouncement() {
+            document.getElementById('winnerAnnouncement').style.display = 'none';
+            document.getElementById('startGameBtn').disabled = false;
+            document.getElementById('startGameBtn').innerHTML = '🔄 再戦開始';
+            document.getElementById('ruleSettings').style.display = 'block';
+            resetRanksForRematch();
+        }
+        function resetRanksForRematch(){
+            // 次戦開始前に称号表示を一旦リセット（視覚的混乱防止）
+            const ids = ['playerRank','cpu1Rank','cpu2Rank','cpu3Rank','cpu4Rank'];
+            ids.forEach(id=>{
+                const el=document.getElementById(id);
+                if(el){
+                    const prev = el.textContent || '';
+                    el.setAttribute('data-prev-title', prev);
+                    el.textContent='–';
+                    el.className='rank-badge rank-futsuhiro';
+                    el.title = prev ? `前回: ${prev}` : '称号リセット';
+                }
+            });
+        }
+        
+        function updateLastPlay(message) {
+            const lastPlay = document.getElementById('lastPlay');
+            lastPlay.innerHTML = message;
+            
+            // メッセージアニメーション
+            lastPlay.style.transform = 'scale(1.1)';
+            lastPlay.style.color = '#ffd700';
+            setTimeout(() => {
+                lastPlay.style.transform = 'scale(1)';
+            }, 500);
+        }
+        // --- ログパネル (Task20-3) 関数群 ---
+        function formatLogText(entry){
+            const kind = entry.kind || 'info';
+            let icon = '•';
+            if(kind.includes('revolution')) icon = '⚡';
+            else if(kind.includes('clear')) icon = '🌀';
+            else if(kind.includes('skip')) icon = '⏭️';
+            else if(kind.includes('reverse')) icon = '🔄';
+            else if(kind.includes('shuffle')) icon = '🔀';
+            else if(kind.includes('joker')) icon = '🃏';
+            else if(kind.includes('play_set')) icon = '🂡';
+            else if(kind.includes('play_run')) icon = '🪜';
+            else if(kind.includes('effect_seven')) icon = '7️⃣';
+            else if(kind.includes('effect_ten')) icon = '🔟';
+            else if(kind.includes('effect_queen')) icon = '👑';
+            else if(kind.includes('eleven')) icon = '1️⃣1️⃣';
+            else if(kind.includes('suit_lock')) icon = '🔒';
+            else if(kind.includes('retire')) icon = '🏳️';
+            else if(kind.includes('play_pending_effect')) icon = '⏳';
+            const ts = entry.ts ? (entry.ts.split('T')[1] || entry.ts) : '';
+            return `<span style="opacity:0.55;" title="${escapeHtml(kind)}">${ts}</span> <span>${icon}</span> ${escapeHtml(entry.text)}`;
+        }
+        function escapeHtml(str){
+            return (str||'').replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s]));
+        }
+        function appendLogEntry(entry){
+            const wrap = document.getElementById('logEntries');
+            if(!wrap) return;
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.style.cssText = 'padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+            div.innerHTML = formatLogText(entry);
+            wrap.appendChild(div);
+            wrap.parentElement.scrollTop = wrap.parentElement.scrollHeight;
+            if(wrap.children.length > 130){
+                const remove = wrap.children.length - 120;
+                for(let i=0;i<remove;i++){ wrap.removeChild(wrap.firstChild); }
+            }
+        }
+        function replaceLogs(entries){
+            const wrap = document.getElementById('logEntries');
+            if(!wrap) return; wrap.innerHTML=''; entries.forEach(e=>appendLogEntry(e));
+        }
+        function clearClientLog(){
+            const wrap = document.getElementById('logEntries'); if(wrap) wrap.innerHTML='';
+        }
+        // 状態 & トースト (Task20-4/5)
+        const currentStateFlags = { revolution:false, eleven:false, suit_lock:false };
+        function updateStatusBadges(){
+            const wrap = document.getElementById('statusBadges');
+            if(!wrap) return; wrap.innerHTML='';
+            if(currentStateFlags.revolution){ wrap.appendChild(makeBadge('⚡ トモヒロウ','revolution')); }
+            if(currentStateFlags.eleven){ wrap.appendChild(makeBadge('1️⃣1️⃣ ギャクヒロ','eleven')); }
+            if(currentStateFlags.suit_lock){ wrap.appendChild(makeBadge('🔒 シバヒロ','suit-lock')); }
+        }
+        function makeBadge(text, cls){ const d=document.createElement('div'); d.className='status-badge '+cls; d.textContent=text; return d; }
+        function showToast(msg, timeout=3200, dedupe=true){
+            // 短時間の同一メッセージ重複防止
+            const now = Date.now();
+            if(dedupe){
+                if(!showToast._last){ showToast._last = {msg:null, at:0}; }
+                if(showToast._last.msg === msg && (now - showToast._last.at) < 1500){
+                    return; // skip duplicate
+                }
+                showToast._last = {msg, at: now};
+            }
+            let cont=document.getElementById('toastContainer');
+            if(!cont){ cont=document.createElement('div'); cont.id='toastContainer'; document.body.appendChild(cont); }
+            const el=document.createElement('div'); el.className='toast-msg'; el.innerHTML = `<span>${escapeHtml(msg)}</span>`; cont.appendChild(el);
+            setTimeout(()=>{ el.style.animation='toastOut .4s forwards ease'; setTimeout(()=>el.remove(),400); }, timeout);
+        }
+        
+        function renderCards(elementId, cards, clickable = false) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            
+            cards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card entering';
+                
+                if (card.suit === '♥' || card.suit === '♦') {
+                    cardElement.classList.add('red');
+                } else if (card.suit === '♠' || card.suit === '♣') {
+                    cardElement.classList.add('black');
+                }
+                
+                if (card.rank === 'Joker') {
+                    cardElement.classList.add('joker');
+                    cardElement.textContent = '🃏';
+                } else {
+                    cardElement.textContent = card.suit + card.rank;
+                }
+                
+                if (clickable) {
+                    cardElement.onclick = () => selectCard(cardElement, index);
+                }
+                // アニメーション終了後クラス除去
+                setTimeout(()=>{ cardElement.classList.remove('entering'); }, 500);
+                container.appendChild(cardElement);
+            });
+        }
+        
+        // Socket.IOイベントハンドラー
+        socket.on('game_joined', function(data) {
+            roomId = data.room_id;
+            hasUnlimitedAccess = data.access_info.unlimited;
+            currentPoints = data.access_info.points || 0;
+            
+            document.getElementById('accessMessage').innerHTML = 
+                `✅ ${data.access_info.message}`;
+            
+            if (!hasUnlimitedAccess) {
+                document.getElementById('pointRequirement').style.display = 'block';
+                document.getElementById('currentPoints').textContent = currentPoints;
+            }
+            
+            if (data.cpu_difficulty) {
+                document.getElementById('cpuInfo').style.display = 'block';
+                document.getElementById('cpuDifficulty').innerHTML = 
+                    `🤖 CPU難易度: <span style="color: #ffd700;">${data.cpu_difficulty.name}</span>`;
+            }
+        });
+        
+        socket.on('game_access_denied', function(data) {
+            document.getElementById('accessMessage').innerHTML = 
+                `❌ ${data.message}`;
+            document.getElementById('startGameBtn').disabled = true;
+        });
+        
+        socket.on('daifugo_game_started', function(data) {
+            gameStarted = true;
+            document.getElementById('gameTable').style.display = 'grid';
+            updateTurnInfo(data.current_player, 0);
+            updateLastPlay('🎮 超豪華版友披露 開始！');
+        });
+        
+        socket.on('daifugo_hand_updated', function(data) {
+            renderCards('playerHand', data.hand, true);
+            const pc = document.getElementById('playerCount');
+            const prev = parseInt(pc.getAttribute('data-prev-count')||'13',10);
+            const now = data.hand.length;
+            pc.textContent = `${now}枚`;
+            pc.setAttribute('data-prev-count', now);
+            pc.classList.remove('warn-low','critical');
+            if(now <= 2) pc.classList.add('critical');
+            else if(now <=5) pc.classList.add('warn-low');
+            if(now < prev){
+                pc.classList.remove('flash-drop');
+                void pc.offsetWidth; /* reflow for restart */
+                pc.classList.add('flash-drop');
+                setTimeout(()=>pc.classList.remove('flash-drop'), 650);
+            }
+        });
+        
+        socket.on('daifugo_field_updated', function(data) {
+            renderCards('fieldCards', data.field);
+            if (data.last_play) {
+                updateLastPlay(data.last_play);
+            }
+        });
+        
+        socket.on('daifugo_turn_changed', function(data) {
+            updateTurnInfo(data.current_player, data.pass_count);
+        });
+
+        // 新しい包括的ステート (CPU 含む)
+        socket.on('daifugo_state', function(data){
+            if(data.current_player){
+                updateTurnInfo(data.current_player, data.pass_count);
+            }
+            // フィールドは daifugo_field_updated で別途更新済み
+            // 将来: 他CPU手札枚数表示同期など
+            const cpuMap = { 'CPU1':'cpu1', 'CPU2':'cpu2', 'CPU3':'cpu3', 'CPU4':'cpu4' };
+            data.players.forEach(p => {
+                if(p.username.startsWith('CPU')){
+                    const key = p.username.toLowerCase();
+                    // 簡易: id割付順で cpuXCount を更新
+                    const countEl = document.getElementById(key+ 'Count');
+                    if(countEl){
+                        const prev = parseInt(countEl.getAttribute('data-prev-count')||'13',10);
+                        const now = p.card_count;
+                        countEl.textContent = now + '枚';
+                        countEl.setAttribute('data-prev-count', now);
+                        countEl.classList.remove('warn-low','critical');
+                        if(now <= 2) countEl.classList.add('critical');
+                        else if(now <=5) countEl.classList.add('warn-low');
+                        if(now < prev){
+                            countEl.classList.remove('flash-drop');
+                            void countEl.offsetWidth;
+                            countEl.classList.add('flash-drop');
+                            setTimeout(()=>countEl.classList.remove('flash-drop'), 650);
+                        }
+                    }
+                }
+            });
+            if(Array.isArray(data.logs)) {
+                replaceLogs(data.logs);
+            }
+            // 状態フラグ差分検出 (ギャクヒロ, シバヒロ, トモヒロウ)
+            const prev = { ...currentStateFlags };
+            if(typeof data.eleven_effect !== 'undefined'){
+                currentStateFlags.eleven = !!data.eleven_effect;
+            }
+            if(typeof data.suit_lock !== 'undefined'){
+                currentStateFlags.suit_lock = !!data.suit_lock;
+            }
+            if(typeof data.revolution !== 'undefined'){
+                currentStateFlags.revolution = !!data.revolution;
+            }
+            if(prev.eleven !== currentStateFlags.eleven){
+                showToast(currentStateFlags.eleven ? '1️⃣1️⃣ ギャクヒロ開始' : '1️⃣1️⃣ ギャクヒロ終了');
+            }
+            if(prev.suit_lock !== currentStateFlags.suit_lock){
+                showToast(currentStateFlags.suit_lock ? '🔒 シバヒロ発生' : '🔓 シバヒロ解除');
+            }
+            if(prev.revolution !== currentStateFlags.revolution && typeof data.revolution !== 'undefined'){
+                // daifugo_revolution 専用イベントでもトーストするが、state 包含時の初回差分でも一応表示 (重複防止: 直近同 tick で二重になりづらい)
+                showToast(currentStateFlags.revolution ? '⚡ トモヒロウ発生 (革命)' : '⚡ トモヒロウ終了');
+            }
+            updateStatusBadges();
+        });
+        
+        socket.on('daifugo_special_rule', function(data) {
+            const message = specialRuleMessages[data.rule] || '✨ 特殊効果発動！';
+            showSpecialEffect('special', message);
+        });
+        
+        socket.on('daifugo_revolution', function(data) {
+            revolutionActive = data.active;
+            showSpecialEffect('revolution');
+            showToast(data.active ? '⚡ トモヒロウ発生 (革命)' : '⚡ トモヒロウ終了');
+            currentStateFlags.revolution = data.active;
+            updateStatusBadges();
+        });
+        
+        socket.on('daifugo_card_exchange_start', function(data) {
+            startCardExchange(data.instruction);
+        });
+        
+        socket.on('daifugo_game_end', function(data) {
+            gameStarted = false;
+            showFinalRanks(data.final_ranks);
+        });
+        socket.on('daifugo_log_update', function(data){
+            if(data && data.entry){
+                appendLogEntry(data.entry);
+                const k = data.entry.kind||'';
+                // 特殊効果 / 状態系トースト
+                switch(true){
+                    case k==='play_set':
+                        showToast('🂡 セット!'); break;
+                    case k==='play_run':
+                        showToast('🪜 ダンヒコ!'); break;
+                    case k==='clear':
+                        showToast('🌀 場流し'); break;
+                    case k==='skip':
+                        showToast('⏭️ トバヒロ (5)'); break;
+                    case k==='effect_seven':
+                        showToast('7️⃣ ワタヒロ (7渡し)'); break;
+                    case k==='effect_ten':
+                        showToast('🔟 ステヒロ (10除外)'); break;
+                    case k==='effect_queen':
+                        showToast('👑 ドクヒロ (Q全員捨て)'); break;
+                    case k==='shuffle':
+                        showToast('🔀 バラヒロ (9再配布)'); break;
+                    case k==='reverse':
+                        showToast('🔄 マワヒロ (K反転)'); break;
+                    case k==='joker':
+                        showToast('� ウソヒロ (ジョーカー)'); break;
+                    case k==='suit_lock_on':
+                        showToast('🔒 シバヒロ発生'); break;
+                    case k==='suit_lock_off':
+                        showToast('🔓 シバヒロ解除'); break;
+                }
+            }
+        });
+        socket.on('daifugo_clear', function(data){
+            showToast('🌀 場流し');
+        });
+        
+        socket.on('game_error', function(data) {
+            alert('🚨 ゲームエラー: ' + data.message);
+        });
+        
+        // 効果選択要求 (7/10/12)
+        socket.on('daifugo_effect_request', function(data){
+            const effect = data.effect;
+            if(effect === 'sevenGive' || effect === 'tenDiscard') {
+                effectModal.open(effect, { hand: data.hand });
+                effectModal._current = { effect, mode: 'card' };
+            } else if (effect === 'queenBomber') {
+                effectModal.open(effect, { numbers: data.numbers });
+                effectModal._current = { effect, mode: 'number' };
+            }
+        });
+        
+        // 7 / 10 / 12 用モーダル土台（今後サーバからのリクエストイベントで開く想定）
+        // （最小骨組み: まだイベント未結線）
+        const effectModal = (() => {
+            let overlayEl = null;
+            function ensure() {
+                if (overlayEl) return overlayEl;
+                overlayEl = document.createElement('div');
+                overlayEl.id = 'effectModalOverlay';
+                overlayEl.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:3000;display:none;align-items:center;justify-content:center;';
+                overlayEl.innerHTML = `\n<div style="background:#222;padding:25px;border-radius:15px;max-width:480px;width:90%;color:#fff;box-shadow:0 0 25px rgba(0,0,0,.6);">\n  <h3 id="effectModalTitle" style="margin-top:0;margin-bottom:10px;color:#ffd700;">効果選択</h3>\n  <div id="effectModalBody" style="max-height:300px;overflow:auto;margin-bottom:15px;font-size:.9em;line-height:1.5;"></div>\n  <div style="text-align:right;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">\n    <button id="effectModalCancel" style="background:#555;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;">キャンセル</button>\n    <button id="effectModalOk" style="background:linear-gradient(45deg,#ffd700,#ffed4e);color:#333;font-weight:bold;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;">決定</button>\n  </div>\n</div>`;
+                document.body.appendChild(overlayEl);
+                document.getElementById('effectModalCancel').onclick = hide;
+            }
+            function open(effect, options) {
+                ensure();
+                const t = document.getElementById('effectModalTitle');
+                const b = document.getElementById('effectModalBody');
+                t.textContent = `効果: ${effect}`;
+                if (effect === 'sevenGive' || effect === 'tenDiscard') {
+                    b.innerHTML = renderHandSelectable(options?.hand || [], true);
+                } else if (effect === 'queenBomber') {
+                    b.innerHTML = renderNumberSelection(options?.numbers || []);
+                } else {
+                    b.textContent = '未対応効果';
+                }
+                document.getElementById('effectModalOk').onclick = () => {
+                    // 選択結果送信
+                    if(!effectModal._current){ hide(); return; }
+                    let choice = null;
+                    if(effectModal._current.mode === 'card') {
+                        // 単一選択を想定: 最初の selected
+                        const sel = overlayEl.querySelector('.card.selected');
+                        if(!sel){ alert('カードを選択してください'); return; }
+                        choice = parseInt(sel.getAttribute('data-idx'));
+                    } else if(effectModal._current.mode === 'number') {
+                        const selBtn = overlayEl.querySelector('[data-num].selected');
+                        if(!selBtn){ alert('数字を選択してください'); return; }
+                        choice = selBtn.getAttribute('data-num');
+                    }
+                    socket.emit('daifugo_effect_submit', { room_id: roomId, choice });
+                    effectModal._current = null;
+                    hide();
+                };
+                overlayEl.style.display = 'flex';
+            }
+            function hide(){ if (overlayEl) overlayEl.style.display='none'; }
+            function renderHandSelectable(hand){
+                return '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + hand.map((c,i)=>`<div class="card" data-idx="${i}" style="width:42px;height:58px;cursor:pointer;" onclick="this.classList.toggle('selected')">${c.suit||''}${c.rank}</div>`).join('') + '</div>';
+            }
+            function renderNumberSelection(nums){
+                if (!nums.length) return '<div>宣言可能な数字がありません</div>';
+                return '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + nums.map(n=>`<button class="btn" style="padding:6px 12px;background:#444;color:#fff;border-radius:8px;" onclick="document.querySelectorAll('[data-num]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected');" data-num="${n}">${n}</button>`).join('') + '</div>';
+            }
+            return { open, hide };
+        })();
+    </script>
+</body>
+</html>

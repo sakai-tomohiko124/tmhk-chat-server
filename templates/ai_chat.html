@@ -20,10 +20,25 @@
     </style>
 </head>
 <body>
-    <header class="chat-header bg-light p-3 border-bottom d-flex justify-content-between align-items-center">
-        <div>
-            <a href="{{ url_for('main_app') }}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
-            <strong class="ml-2"><i class="bi bi-robot"></i> AIチャット (Gemini)</strong>
+    <header class="chat-header bg-light p-3 border-bottom d-flex flex-wrap justify-content-between align-items-center">
+        <div class="d-flex align-items-center mb-2 mb-sm-0">
+            <a href="{{ url_for('main_app') }}" class="btn btn-secondary btn-sm mr-2"><i class="bi bi-arrow-left"></i></a>
+            <strong class="mr-3"><i class="bi bi-robot"></i> AIチャット</strong>
+            <span id="current-model-badge" class="badge badge-info" style="font-size:0.85rem;">モデル: (選択)</span>
+        </div>
+        <div class="d-flex align-items-center">
+            <div class="input-group input-group-sm" style="min-width:220px;">
+                <div class="input-group-prepend"><span class="input-group-text"><i class="bi bi-cpu"></i></span></div>
+                <select id="model-select" class="form-control">
+                    {% if ai_available_models %}
+                        {% for m in ai_available_models %}
+                        <option value="{{ m.model_key }}" data-provider="{{ m.provider }}" data-temp="{{ m.temperature }}">{{ m.display_name }} ({{ m.provider }})</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="claude-sonnet-4">claude-sonnet-4</option>
+                    {% endif %}
+                </select>
+            </div>
         </div>
     </header>
 
@@ -42,6 +57,7 @@
     </div>
 
     <form class="chat-form p-3 bg-light border-top" id="message-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="input-group">
             <input type="text" id="message-input" class="form-control" placeholder="AIへの質問やメッセージを入力..." autocomplete="off">
             <div class="input-group-append">
@@ -65,12 +81,24 @@ document.addEventListener('DOMContentLoaded', function() {
         if (input.value) {
             const message = input.value;
             appendMessage(message, 'my-message');
-            socket.emit('send_ai_message', { 'message': message });
+            const model = document.getElementById('model-select').value;
+            socket.emit('send_ai_message', { 'message': message, 'model': model });
             input.value = '';
             typingIndicator.style.display = 'flex';
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
     });
+
+    // モデル選択バッジ更新
+    const modelSelect = document.getElementById('model-select');
+    const badge = document.getElementById('current-model-badge');
+    function updateBadge(){
+        const opt = modelSelect.options[modelSelect.selectedIndex];
+        const provider = opt.getAttribute('data-provider') || 'provider';
+        badge.textContent = 'モデル: ' + opt.value + ' [' + provider + ']';
+    }
+    modelSelect.addEventListener('change', updateBadge);
+    updateBadge();
 
     socket.on('ai_response', function(data) {
         typingIndicator.style.display = 'none';
@@ -80,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function appendMessage(content, className) {
         const messageBubble = document.createElement('div');
         messageBubble.classList.add('message-bubble', className);
-        messageBubble.innerHTML = content.replace(/\\n/g, '<br>');
+        messageBubble.innerHTML = content.replace(/\n/g, '<br>');
         chatContainer.insertBefore(messageBubble, typingIndicator);
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }

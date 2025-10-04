@@ -18,6 +18,25 @@
     <a href="{{ url_for('main_app') }}" class="btn btn-secondary mb-4"><i class="bi bi-arrow-left"></i> 戻る</a>
     <h1 class="mb-4"><i class="bi bi-gear-fill"></i> 設定</h1>
 
+    <!-- 画面PIN設定 -->
+    <h4 class="mt-4 mb-3">画面ロック (PIN)</h4>
+    <div class="card mb-4">
+        <div class="card-body">
+            <p class="small text-muted mb-2">アプリ起動時に4桁のPINでロックできます。空欄で送信すると解除します。</p>
+            <form method="POST" action="{{ url_for('set_screen_pin') }}" class="form-inline">
+                <div class="form-group mb-2 mr-2">
+                    <input type="password" name="screen_pin" maxlength="4" pattern="\d{4}" class="form-control" placeholder="{{ '****' if current_user.screen_pin else '4桁数字' }}" {% if current_user.screen_pin %}value=""{% endif %}>
+                </div>
+                <button class="btn btn-primary mb-2 mr-2" type="submit">{{ '更新' if current_user.screen_pin else '設定' }}</button>
+                {% if current_user.screen_pin %}
+                    <small class="text-success mb-2">現在: 設定済</small>
+                {% else %}
+                    <small class="text-muted mb-2">現在: 未設定</small>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
     <!-- アカウント -->
     <h4 class="mt-4 mb-3">アカウント</h4>
     <div class="card mb-4">
@@ -99,19 +118,27 @@
     </div>
 
     <!-- ヘルプ -->
-    <h4 class="mt-4 mb-3">ヘルプ</h4>
-     <div class="card mb-4">
-        <div class="list-group list-group-flush">
-            <a href="{{ url_for('app_manual_page') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                <div><i class="bi bi-book mr-2"></i>アプリの説明書</div>
-                <i class="bi bi-chevron-right"></i>
-            </a>
-            <a href="{{ url_for('announcements_page') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                <div><i class="bi bi-megaphone mr-2"></i>運営からのお知らせ</div>
-                <i class="bi bi-chevron-right"></i>
-            </a>
-        </div>
+<h4 class="mt-4 mb-3">ヘルプ</h4>
+<div class="card mb-4">
+    <div class="list-group list-group-flush">
+        <a href="{{ url_for('start_tutorial') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <div><i class="bi bi-book mr-2"></i>使い方・チュートリアル</div>
+            <i class="bi bi-chevron-right"></i>
+        </a>
+        <a href="{{ url_for('points_status') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <div><i class="bi bi-gem mr-2"></i>ポイント・機能ショップ</div>
+            <i class="bi bi-chevron-right"></i>
+        </a>
+        <a href="{{ url_for('manual_page') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <div><i class="bi bi-file-text mr-2"></i>アプリの説明書</div>
+            <i class="bi bi-chevron-right"></i>
+        </a>
+        <a href="{{ url_for('announcements_page') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <div><i class="bi bi-megaphone mr-2"></i>運営からのお知らせ</div>
+            <i class="bi bi-chevron-right"></i>
+        </a>
     </div>
+</div>
 </div>
     <div class="mt-4">
         <a href="{{ url_for('login_classic') }}" class="btn btn-outline-success btn-block"></a>

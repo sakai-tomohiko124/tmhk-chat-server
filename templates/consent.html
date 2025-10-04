@@ -1,0 +1,15 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>利用規約への同意</h2>
+  <div class="card mb-3">
+    <div class="card-body" style="white-space: pre-wrap; max-height: 50vh; overflow-y: auto;">
+      {{ consent_text | safe }}
+    </div>
+  </div>
+  <form method="POST" class="d-flex gap-2">
+    <button name="decision" value="yes" class="btn btn-primary">Yes (同意する)</button>
+    <button name="decision" value="no" class="btn btn-secondary">No (同意しない)</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ポイント状況 - TMHKchat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        .points-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        .points-display {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .points-number {
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .feature-card {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        .feature-card:hover {
+            border-color: #4f46e5;
+            background: #f0f1ff;
+        }
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="points-card">
+                    <h2 class="text-center mb-4">
+                        <i class="bi bi-coin"></i> ポイント状況
+                    </h2>
+                    
+                    <!-- 現在のポイント表示 -->
+                    <div class="points-display">
+                        <div class="points-number">{{ user_points }}pt</div>
+                        <p class="mb-0">現在のポイント</p>
+                    </div>
+                    
+                    <!-- 購入可能な機能 -->
+                    <h4 class="mb-3">
+                        <i class="bi bi-gift"></i> 購入可能な機能
+                    </h4>
+                    {% if available_features %}
+                        {% for feature in available_features %}
+                        <div class="feature-card">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ feature.name }}</h6>
+                                    <small class="text-muted">機能の詳細説明</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ feature.cost }}pt</span>
+                                    {% if user_points >= feature.cost %}
+                                        <button class="btn btn-sm btn-success ms-2">購入可能</button>
+                                    {% else %}
+                                        <button class="btn btn-sm btn-secondary ms-2" disabled>ポイント不足</button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">購入可能な機能はありません。</p>
+                    {% endif %}
+                    
+                    <!-- ポイント履歴 -->
+                    <h4 class="mb-3 mt-4">
+                        <i class="bi bi-clock-history"></i> ポイント履歴
+                    </h4>
+                    {% if point_history %}
+                        <div class="history-list">
+                            {% for history in point_history %}
+                            <div class="history-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ history.action }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ history.created_at }}</small>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if history.points_earned > 0 %}
+                                            <span class="text-success">+{{ history.points_earned }}pt</span>
+                                        {% else %}
+                                            <span class="text-danger">{{ history.points_earned }}pt</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">ポイント履歴がありません。</p>
+                    {% endif %}
+                    
+                    <!-- 戻るボタン -->
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('main_app') }}" class="btn btn-primary">
+                            <i class="bi bi-arrow-left"></i> メインアプリに戻る
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

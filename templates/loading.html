@@ -1,13 +1,19 @@
-<!DOCTYPE html>
-<html lang="ja">
+<!-- templates/loading.html -->
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="2.5;url=/login">
+    {% set target = redirect_to if redirect_to else '/consent' %}
+    <meta http-equiv="refresh" content="1.2;url={{ target }}">
     <title>TMHKchatへようこそ</title>
     <style>
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #2c3e50; }
-        h1 { color: #ecf0f1; font-size: 4em; }
+        body { display: flex; flex-direction: column; gap: 1rem; justify-content: center; align-items: center; height: 100vh; margin: 0; background: linear-gradient(135deg,#2c3e50,#34495e); font-family: system-ui, Arial; }
+        h1 { color: #ecf0f1; font-size: 3em; letter-spacing: 2px; }
+        .spinner { width: 60px; height: 60px; border: 6px solid #3d566e; border-top: 6px solid #1abc9c; border-radius: 50%; animation: spin 0.9s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        p { color:#bdc3c7; }
     </style>
 </head>
-<body><h1>TMHKchat</h1></body>
-</html>
+<body>
+  <div class="spinner"></div>
+  <h1>Loading...</h1>
+  <p>初回セットアップを確認しています...</p>
+</body>
