@@ -1,147 +1,306 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新規登録 - TMHKchat</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .register-container {
-            max-width: 450px;
-            margin: 30px auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            overflow: hidden;
-        }
-        .register-header {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            padding: 25px 20px;
-            text-align: center;
-        }
-        .register-body {
-            padding: 30px;
-        }
-        .account-type-card {
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 12px;
-            text-align: center;
-            transition: all 0.3s;
-            cursor: pointer;
-            margin-bottom: 8px;
-        }
-        .account-type-card.selected {
-            border-color: #f5576c;
-            background: #fff5f7;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="register-container">
-            <div class="register-header">
-                <h2><i class="bi bi-person-plus-fill"></i></h2>
-                <h4>新規登録</h4>
-            </div>
-            
-            <div class="register-body">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-                
-                <form method="POST">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">アカウントタイプ</label>
-                        <div class="row">
-                            {% for key, value in account_types.items() %}
-                            <div class="col-12">
-                                <div class="account-type-card" onclick="selectAccountType('{{ key }}')">
-                                    <input type="radio" name="account_type" value="{{ key }}" id="reg-type-{{ key }}" 
-                                           {% if key == selected_account_type %}checked{% endif %} style="display: none;">
-                                    <div class="fw-bold">{{ value['name'] }}</div>
-                                    <small class="text-muted">{{ value['name'] }}用アカウント</small>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3" id="custom-account-name-wrapper" style="display: none;">
-                        <label for="custom_account_name" class="form-label">コミュニティ名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="custom_account_name" name="custom_account_name"
-                               placeholder="参加したいコミュニティ名を入力">
-                    </div>
+{% extends "base.html" %}
 
-                    <div class="mb-3">
-                        <label for="username" class="form-label">ユーザー名 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="username" name="username" required
-                               placeholder="ユーザー名（半角英数字・日本語可）" maxlength="20">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="email" class="form-label">メールアドレス <small class="text-muted">(任意)</small></label>
-                        <input type="email" class="form-control" id="email" name="email"
-                               placeholder="example@email.com">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="password" class="form-label">パスワード <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" id="password" name="password" required
-                                   placeholder="パスワード（8文字以上推奨）" minlength="4">
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary w-100 mb-3">
-                        <i class="bi bi-person-plus"></i> アカウント作成
-                    </button>
-                    
-                    <div class="text-center">
-                        <span class="text-muted">既にアカウントをお持ちですか？</span>
-                        <a href="{{ url_for('login') }}" class="text-decoration-none">ログイン</a>
-                    </div>
-                </form>
+{% block title %}TMHKchat - 新規登録{% endblock %}
+
+{% block head_style %}
+<style>
+    /* メインのコンテンツコンテナ */
+    .container {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(25px); /* すりガラス効果 */
+        -webkit-backdrop-filter: blur(25px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        padding: 2.5rem;
+        width: 90%;
+        max-width: 450px;
+        text-align: center;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        opacity: 0; /* GSAPでのアニメーションのため初期状態は非表示 */
+    }
+
+    /* タイトル */
+    h1 {
+        font-size: 2.5rem;
+        font-weight: 500;
+        color: #fff;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        letter-spacing: 2px;
+    }
+
+    /* 説明文 */
+    p {
+        margin-bottom: 2rem;
+        font-weight: 300;
+        opacity: 0.8;
+    }
+
+    /* 入力フォーム */
+    .input-group {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    input[type="text"], input[type="password"] {
+        width: 100%;
+        padding: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-color);
+        font-size: 1.125rem;
+        font-family: var(--font-family);
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+
+    input[type="text"]::placeholder, input[type="password"]::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    input[type="text"]:focus, input[type="password"]:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 15px rgba(159, 120, 255, 0.5);
+    }
+
+    /* パスワード表示切り替えボタン */
+    .password-toggle {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.6);
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 0;
+        width: auto;
+        transition: color 0.3s ease;
+    }
+
+    .password-toggle:hover {
+        color: var(--primary-color);
+        transform: translateY(-50%) scale(1.1);
+        box-shadow: none;
+    }
+
+    /* バリデーションメッセージ */
+    .validation-message {
+        color: rgba(255, 100, 100, 0.8);
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+        text-align: left;
+    }
+
+    .success-message {
+        color: rgba(100, 255, 100, 0.8);
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+        text-align: left;
+    }
+
+    /* 新規登録ボタン */
+    button[type="submit"] {
+        width: 100%;
+        padding: 1rem;
+        border: none;
+        border-radius: 10px;
+        background-image: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        color: #fff;
+        font-size: 1.25rem;
+        font-family: var(--font-family);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+
+    button[type="submit"]:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    button[type="submit"]:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    /* エラーメッセージ（フラッシュメッセージ）用のスタイル */
+    .flash-message {
+        padding: 1rem;
+        background-color: rgba(255, 0, 60, 0.5);
+        color: white;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        border: 1px solid var(--danger-color);
+    }
+
+    /* ログインリンク */
+    .login-link {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .login-link a {
+        color: var(--secondary-color);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.3s ease;
+    }
+
+    .login-link a:hover {
+        color: var(--primary-color);
+        text-decoration: underline;
+    }
+
+    /* 注意事項 */
+    .notice {
+        background: rgba(159, 120, 255, 0.1);
+        border: 1px solid rgba(159, 120, 255, 0.3);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.8);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- サーバーから送信されたフラッシュメッセージがあれば表示 -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash-message">
+                {{ messages[0] }}
             </div>
-        </div>
+        {% endif %}
+    {% endwith %}
+
+    <h1 class="anim-item">新規登録</h1>
+    <p class="anim-item">新しいアカウントを作成</p>
+    
+    <div class="notice anim-item">
+        <strong>注意:</strong> ユーザー名は変更できません。パスワードは2文字以上で設定してください。
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function selectAccountType(type) {
-            document.querySelectorAll('.account-type-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            event.currentTarget.classList.add('selected');
-            document.getElementById('reg-type-' + type).checked = true;
-
-            const customInput = document.getElementById('custom-account-name-wrapper');
-            if (type === 'other') {
-                customInput.style.display = 'block';
-                document.getElementById('custom_account_name').required = true;
-            } else {
-                customInput.style.display = 'none';
-                document.getElementById('custom_account_name').required = false;
-            }
-        }
+    <form method="POST" class="anim-item" id="registerForm">
+        <div class="input-group">
+            <input type="text" name="username" id="username" placeholder="ユーザー名を入力" required autocomplete="username">
+            <div class="validation-message" id="usernameValidation" style="display: none;">
+                このユーザー名は既に使用されています
+            </div>
+            <div class="success-message" id="usernameSuccess" style="display: none;">
+                このユーザー名は使用可能です
+            </div>
+        </div>
         
-        document.addEventListener('DOMContentLoaded', function() {
-            const selectedRadio = document.querySelector('input[name="account_type"]:checked');
-            if (selectedRadio) {
-                selectedRadio.closest('.account-type-card').classList.add('selected');
-            }
-        });
-    </script>
-</body>
-</html>
+        <div class="input-group">
+            <input type="password" name="password" id="password" placeholder="パスワードを入力 (2文字以上)" required autocomplete="new-password" minlength="2">
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility()">👁</button>
+            <div class="validation-message" id="passwordValidation" style="display: none;">
+                パスワードは2文字以上で入力してください
+            </div>
+        </div>
+        
+        <button type="submit" id="submitButton">アカウント作成</button>
+    </form>
+
+    <div class="login-link anim-item">
+        <p>既にアカウントをお持ちの方は<br><a href="/login">ログインはこちら</a></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_script %}
+<script>
+    // GSAPを使って要素をアニメーションさせる
+    gsap.to(".container", {
+        duration: 1.5,
+        opacity: 1,
+        ease: "expo.out"
+    });
+
+    gsap.from(".anim-item", {
+        duration: 1,
+        opacity: 0,
+        y: 30,
+        stagger: 0.2,
+        delay: 0.5,
+        ease: "power3.out"
+    });
+
+    // パスワード表示/非表示切り替え
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const toggleButton = document.querySelector('.password-toggle');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleButton.textContent = '🙈';
+        } else {
+            passwordInput.type = 'password';
+            toggleButton.textContent = '👁';
+        }
+    }
+
+    // パスワードバリデーション
+    document.getElementById('password').addEventListener('input', function() {
+        const password = this.value;
+        const validationMessage = document.getElementById('passwordValidation');
+        const submitButton = document.getElementById('submitButton');
+        
+        if (password.length < 2 && password.length > 0) {
+            validationMessage.style.display = 'block';
+            submitButton.disabled = true;
+        } else {
+            validationMessage.style.display = 'none';
+            submitButton.disabled = false;
+        }
+    });
+
+    // ユーザー名重複チェック
+    let userCheckTimeout;
+    document.getElementById('username').addEventListener('input', function() {
+        const username = this.value.trim();
+        const validationMessage = document.getElementById('usernameValidation');
+        const successMessage = document.getElementById('usernameSuccess');
+        const submitButton = document.getElementById('submitButton');
+        
+        // メッセージを一旦隠す
+        validationMessage.style.display = 'none';
+        successMessage.style.display = 'none';
+        
+        // 入力停止から500ms後にチェック
+        clearTimeout(userCheckTimeout);
+        if (username.length >= 2) {
+            userCheckTimeout = setTimeout(() => {
+                fetch('/check_user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({username: username})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        validationMessage.style.display = 'block';
+                        submitButton.disabled = true;
+                    } else {
+                        successMessage.style.display = 'block';
+                        submitButton.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }, 500);
+        }
+    });
+</script>
+{% endblock %}

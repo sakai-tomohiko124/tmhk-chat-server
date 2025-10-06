@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+{% block title %}管理者ダッシュボード{% endblock %}
+{% block head_style %}
+<style>
+    .admin-container {
+        width: 95%;
+        max-width: 1200px;
+        height: 90vh;
+        background: rgba(20, 20, 40, 0.5);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        padding: 2rem;
+        overflow-y: auto;
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    h1 {
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 2rem;
+        color: var(--secondary-color);
+        position: relative;
+    }
+
+    /* 小説アイコンのスタイル */
+    .novel-icon {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(159, 120, 255, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(159, 120, 255, 0.3);
+        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: var(--primary-color);
+        text-decoration: none;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(159, 120, 255, 0.2);
+    }
+
+    .novel-icon:hover {
+        background: rgba(159, 120, 255, 0.3);
+        transform: translateY(-50%) scale(1.05);
+        box-shadow: 0 6px 20px rgba(159, 120, 255, 0.3);
+        color: var(--secondary-color);
+    }
+
+    .novel-icon:active {
+        transform: translateY(-50%) scale(0.95);
+    }
+
+    /* ツールチップ */
+    .novel-icon::after {
+        content: "小説を読む";
+        position: absolute;
+        bottom: -35px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        z-index: 1000;
+    }
+
+    .novel-icon:hover::after {
+        opacity: 1;
+    }
+    
+    .table-wrapper {
+        overflow-x: auto; /* スマホ表示で横スクロール可能に */
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px; /* テーブルの最小幅を指定 */
+    }
+
+    th, td {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    th {
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+
+    /* オンライン状況のインジケーター */
+    .status-indicator {
+        display: inline-block;
+    }
+
+    /* モード切り替えボタン */
+    .mode-btn {
+        padding: 0.7rem 1.5rem;
+        margin: 0 0.5rem;
+        border: 2px solid var(--primary-color);
+        background: transparent;
+        color: var(--primary-color);
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: inherit;
+    }
+
+    .mode-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .mode-btn.active {
+        background: var(--primary-color);
+        color: var(--bg-color);
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    .status-indicator.online {
+        background-color: #2ecc71; /* 緑 */
+        box-shadow: 0 0 8px #2ecc71;
+    }
+    .status-indicator.offline {
+        background-color: #95a5a6; /* グレー */
+    }
+
+    /* 操作ボタン */
+    .action-btn {
+        display: inline-block;
+        background-image: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: transform 0.2s;
+    }
+    .action-btn:hover {
+        transform: scale(1.05);
+    }
+
+    /* 円減算フォーム */
+    .adjust-form {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .adjust-form input[type="number"] {
+        background: rgba(0,0,0,0.3);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 8px;
+        border-radius: 5px;
+        width: 100px;
+        font-family: var(--font-family);
+    }
+    .adjust-form button {
+        background: var(--danger-color);
+        color: #fff;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    
+    /* フラッシュメッセージ */
+    .flash-message {
+        padding: 1rem;
+        background-color: rgba(40, 167, 69, 0.3);
+        color: #28a745;
+        border: 1px solid #28a745;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+            <h1>管理者画面
+            <a href="https://www.alphapolis.co.jp/novel/31484585/380882757" target="_blank" class="novel-icon" title="小説を読む">📖</a>
+        </h1>
+
+    <!-- 応答モード切り替え -->
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <label style="color: var(--secondary-color); margin-right: 1rem;">応答モード:</label>
+        <button id="autoModeBtn" class="mode-btn active" onclick="toggleMode(true)">自動応答</button>
+        <button id="manualModeBtn" class="mode-btn" onclick="toggleMode(false)">手動応答</button>
+        <div id="modeStatus" style="margin-top: 0.5rem; color: var(--primary-color);"></div>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash-message">
+                {{ messages[0] }}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>ユーザー名</th>
+                    <th>ステータス</th>
+                    <th>保有円</th>
+                    <th>登録日時</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="user-list-body">
+                {% for user in users %}
+                <tr id="user-row-{{ user.id }}">
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>
+                        <span class="status-indicator {{ 'online' if user.id in online_users else 'offline' }}"></span>
+                        <span class="status-text">{{ 'オンライン' if user.id in online_users else 'オフライン' }}</span>
+                    </td>
+                    <td>{{ "{:,}".format(user.balance) }}</td>
+                    <td>{{ user.registered_at.split(' ')[0] }}</td>
+                    <td>
+                        <div class="adjust-form">
+                            <a href="{{ url_for('admin_chat', user_id=user.id) }}" class="action-btn">チャット</a>
+                            <form action="{{ url_for('adjust_points') }}" method="POST">
+                                <input type="hidden" name="user_id" value="{{ user.id }}">
+                                <input type="number" name="amount" placeholder="円数" required>
+                                <button type="submit">減算</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_script %}
+<script>
+    gsap.to(".admin-container", { duration: 0.8, opacity: 1, scale: 1, ease: "back.out" });
+
+    const socket = io();
+
+    // ユーザーのオンライン状態が変化したときの処理
+    socket.on('user_status_change', (data) => {
+        const userRow = document.getElementById(`user-row-${data.user_id}`);
+        if (userRow) {
+            const statusIndicator = userRow.querySelector('.status-indicator');
+            const statusText = userRow.querySelector('.status-text');
+
+            if (data.status === 'online') {
+                statusIndicator.classList.remove('offline');
+                statusIndicator.classList.add('online');
+                statusText.textContent = 'オンライン';
+            } else {
+                statusIndicator.classList.remove('online');
+                statusIndicator.classList.add('offline');
+                statusText.textContent = 'オフライン';
+            }
+        }
+    });
+
+    // 招待によるポイント更新をリアルタイムで反映
+    socket.on('update_balance_silent', (data) => {
+        // このイベントは管理者画面のリアルタイム更新のため、再実装が必要
+        // 現状ではページリロードで更新されます
+    });
+
+    // 応答モード管理
+    let currentAutoMode = true;
+
+    // ページ読み込み時に現在のモードを取得
+    socket.emit('get_admin_mode');
+
+    // モード状態の更新
+    socket.on('mode_status', (data) => {
+        currentAutoMode = data.auto_mode;
+        updateModeDisplay();
+    });
+
+    // モード変更の確認
+    socket.on('mode_changed', (data) => {
+        currentAutoMode = data.auto_mode;
+        updateModeDisplay();
+    });
+
+    // 手動応答が必要な場合の通知
+    socket.on('manual_response_needed', (data) => {
+        if (!currentAutoMode) {
+            // 手動モードの場合のみ通知を表示
+            showManualResponseNotification(data);
+        }
+    });
+
+    // モード切り替え関数
+    function toggleMode(autoMode) {
+        socket.emit('toggle_admin_mode', { auto_mode: autoMode });
+    }
+
+    // モード表示の更新
+    function updateModeDisplay() {
+        const autoBtn = document.getElementById('autoModeBtn');
+        const manualBtn = document.getElementById('manualModeBtn');
+        const statusDiv = document.getElementById('modeStatus');
+
+        if (currentAutoMode) {
+            autoBtn.classList.add('active');
+            manualBtn.classList.remove('active');
+            statusDiv.textContent = '🤖 自動応答モード - システムが自動で返信します';
+        } else {
+            autoBtn.classList.remove('active');
+            manualBtn.classList.add('active');
+            statusDiv.textContent = '👤 手動応答モード - 手動で返信が必要です';
+        }
+    }
+
+    // 手動応答通知の表示
+    function showManualResponseNotification(data) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 100, 100, 0.9);
+            color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        `;
+        const currentTime = new Date().toLocaleTimeString('ja-JP', { 
+            hour12: false,
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
+        });
+        
+        notification.innerHTML = `
+            <strong>手動返信が必要です</strong><br>
+            時刻: ${currentTime}<br>
+            ユーザー: ${data.username}<br>
+            メッセージ: ${data.message}<br>
+            <button onclick="this.parentElement.remove()" style="
+                background: white;
+                color: #666;
+                border: none;
+                padding: 0.3rem 0.8rem;
+                border-radius: 5px;
+                margin-top: 0.5rem;
+                cursor: pointer;
+            ">閉じる</button>
+        `;
+        document.body.appendChild(notification);
+
+        // 10秒後に自動で削除
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 10000);
+    }
+</script>
+{% endblock %}

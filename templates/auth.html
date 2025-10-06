@@ -61,8 +61,8 @@
 
     input[type="text"]:focus, input[type="password"]:focus {
         outline: none;
-        border-color: var(--secondary-color);
-        box-shadow: 0 0 15px rgba(162, 210, 255, 0.5);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 15px rgba(159, 120, 255, 0.5);
     }
 
     /* パスワード表示切り替えボタン */
@@ -82,7 +82,7 @@
     }
 
     .password-toggle:hover {
-        color: var(--secondary-color);
+        color: var(--primary-color);
         transform: translateY(-50%) scale(1.1);
         box-shadow: none;
     }
@@ -95,13 +95,13 @@
         text-align: left;
     }
 
-    /* ログインボタン */
+    /* 送信ボタン */
     button[type="submit"] {
         width: 100%;
         padding: 1rem;
         border: none;
         border-radius: 10px;
-        background-image: linear-gradient(45deg, var(--secondary-color), #6fb3f5);
+        background-image: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
         color: #fff;
         font-size: 1.25rem;
         font-family: var(--font-family);
@@ -124,30 +124,23 @@
     /* エラーメッセージ（フラッシュメッセージ）用のスタイル */
     .flash-message {
         padding: 1rem;
-        background-color: rgba(255, 0, 60, 0.5);
+        background-color: rgba(255, 0, 60, 0.5); /* var(--danger-color)を半透明に */
         color: white;
         border-radius: 10px;
         margin-bottom: 1rem;
         border: 1px solid var(--danger-color);
     }
 
-    /* 新規登録リンク */
-    .register-link {
-        margin-top: 1.5rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .register-link a {
+    /* モード切り替え表示 */
+    .mode-indicator {
+        background: rgba(159, 120, 255, 0.2);
+        border: 1px solid rgba(159, 120, 255, 0.3);
+        border-radius: 10px;
+        padding: 0.8rem;
+        margin-bottom: 1.5rem;
         color: var(--primary-color);
-        text-decoration: none;
+        font-size: 0.95rem;
         font-weight: 500;
-        transition: color 0.3s ease;
-    }
-
-    .register-link a:hover {
-        color: var(--secondary-color);
-        text-decoration: underline;
     }
 </style>
 {% endblock %}
@@ -163,46 +156,49 @@
         {% endif %}
     {% endwith %}
 
-    <h1 class="anim-item">ログイン</h1>
-    <p class="anim-item">既存アカウントでログイン</p>
+    <h1 class="anim-item">TMHKchat</h1>
+    <p class="anim-item">認証</p>
     
-    <form method="POST" class="anim-item" id="loginForm">
+    <!-- モード表示 -->
+    <div class="mode-indicator anim-item" id="modeIndicator">
+        新規ユーザー登録
+    </div>
+    
+    <form method="POST" class="anim-item" id="authForm">
         <div class="input-group">
             <input type="text" name="username" id="username" placeholder="ユーザー名を入力" required autocomplete="username">
         </div>
         
         <div class="input-group">
-            <input type="password" name="password" id="password" placeholder="パスワードを入力" required autocomplete="current-password" minlength="2">
+            <input type="password" name="password" id="password" placeholder="パスワードを入力 (2文字以上)" required autocomplete="current-password" minlength="2">
             <button type="button" class="password-toggle" onclick="togglePasswordVisibility()">👁</button>
             <div class="validation-message" id="passwordValidation" style="display: none;">
                 パスワードは2文字以上で入力してください
             </div>
         </div>
         
-        <button type="submit" id="submitButton">ログイン</button>
+        <button type="submit" id="submitButton">アカウント作成</button>
     </form>
-
-    <div class="register-link anim-item">
-        <p>アカウントをお持ちでない方は<br><a href="/register">新規登録はこちら</a></p>
-    </div>
 </div>
 {% endblock %}
 
 {% block body_script %}
 <script>
     // GSAPを使って要素をアニメーションさせる
+    // ページ読み込み時にコンテナ全体がふわっと表示される
     gsap.to(".container", {
         duration: 1.5,
         opacity: 1,
         ease: "expo.out"
     });
 
+    // コンテナ内の各要素が少し遅れて下から順番に表示される
     gsap.from(".anim-item", {
         duration: 1,
         opacity: 0,
-        y: 30,
-        stagger: 0.2,
-        delay: 0.5,
+        y: 30, // 30px下から
+        stagger: 0.2, // 0.2秒ずつずらして
+        delay: 0.5, // 0.5秒後から開始
         ease: "power3.out"
     });
 
@@ -232,6 +228,48 @@
         } else {
             validationMessage.style.display = 'none';
             submitButton.disabled = false;
+        }
+    });
+
+    // ユーザー名入力時にモード判定（既存ユーザーかどうか）
+    let userCheckTimeout;
+    document.getElementById('username').addEventListener('input', function() {
+        const username = this.value.trim();
+        const modeIndicator = document.getElementById('modeIndicator');
+        const submitButton = document.getElementById('submitButton');
+        
+        // 入力停止から500ms後にチェック
+        clearTimeout(userCheckTimeout);
+        if (username.length >= 2) {
+            userCheckTimeout = setTimeout(() => {
+                // 簡易的なユーザー存在チェック（実際のチェックはサーバーサイドで行う）
+                fetch('/check_user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({username: username})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        modeIndicator.textContent = 'ログイン';
+                        modeIndicator.style.background = 'rgba(162, 210, 255, 0.2)';
+                        modeIndicator.style.borderColor = 'rgba(162, 210, 255, 0.3)';
+                        modeIndicator.style.color = 'var(--secondary-color)';
+                        submitButton.textContent = 'ログイン';
+                    } else {
+                        modeIndicator.textContent = '新規ユーザー登録';
+                        modeIndicator.style.background = 'rgba(159, 120, 255, 0.2)';
+                        modeIndicator.style.borderColor = 'rgba(159, 120, 255, 0.3)';
+                        modeIndicator.style.color = 'var(--primary-color)';
+                        submitButton.textContent = 'アカウント作成';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }, 500);
         }
     });
 </script>

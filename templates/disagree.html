@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}!! SYSTEM ALERT !!{% endblock %}
+
+{% block head_style %}
+<style>
+    /* VT323フォントをインポート */
+    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+    /* 走査線（スキャンライン）エフェクト */
+    .scanlines {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0) 100%);
+        background-size: 100% 4px;
+        animation: scan 0.1s linear infinite;
+        pointer-events: none; /* マウスイベントを無効化 */
+        z-index: 10;
+    }
+    @keyframes scan {
+        from { background-position: 0 0; }
+        to { background-position: 0 4px; }
+    }
+
+    /* メインのコンテンツコンテナ */
+    .container {
+        font-family: 'VT323', monospace; /* レトロなターミナル風フォント */
+        text-align: center;
+        border: 3px solid var(--danger-color);
+        padding: 2rem;
+        box-shadow: 0 0 30px var(--danger-color), inset 0 0 20px var(--danger-color);
+        animation: glitch 1.5s infinite; /* 画面が乱れるグリッチアニメーション */
+        opacity: 0; /* GSAPでのアニメーションのため初期状態は非表示 */
+    }
+
+    /* グリッチアニメーションの定義 */
+    @keyframes glitch {
+        2%, 64% { transform: translate(2px, -2px) skew(0, 5deg); }
+        4%, 60% { transform: translate(-2px, 2px) skew(0, -5deg); }
+        62% { transform: translate(0, 0) skew(5deg, 0); }
+    }
+
+    h1 {
+        font-size: clamp(2.5rem, 10vw, 4rem); /* 画面サイズに応じてフォントサイズを調整 */
+        margin: 0;
+        color: var(--danger-color);
+        text-shadow: 0 0 10px var(--danger-color);
+        animation: glitch-text 2s infinite; /* テキストが乱れるアニメーション */
+    }
+
+    h2 {
+        font-size: clamp(1.5rem, 6vw, 2.5rem);
+        color: #fff;
+    }
+
+    p {
+        font-size: clamp(1.2rem, 5vw, 1.8rem);
+    }
+
+    .buttons button {
+        background: transparent;
+        border: 2px solid var(--danger-color);
+        color: var(--danger-color);
+        padding: 0.8rem 1.5rem;
+        font-family: 'VT323', monospace;
+        font-size: 1.5rem;
+        cursor: pointer;
+        margin: 1rem;
+        transition: all 0.2s;
+    }
+    .buttons button:hover {
+        background: var(--danger-color);
+        color: #000;
+        box-shadow: 0 0 15px var(--danger-color);
+    }
+
+    .small-text {
+        font-size: 1rem;
+        color: #fff;
+        opacity: 0.7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="scanlines"></div>
+<div class="container">
+    <h1>＜警告＞ウイルスを検知しました</h1>
+    <h2>あなたは、新型ひっこー病に感染しました</h2>
+    <p>今すぐ0クレジットを支払わなければ嫌なことが起こってしまいます</p>
+    <div class="buttons">
+        <!-- 支払うボタンを押すとセッションクリアして認証画面（ログイン画面）にリダイレクト -->
+        <button onclick="window.location.href='/pay'">支払う</button>
+    </div>
+    <p class="small-text">ユーザー[{{ username }}]の拒否ログは管理者に転送されました。</p>
+</div>
+{% endblock %}
+
+{% block body_script %}
+<script>
+    // GSAPを使ってコンテナをアニメーション表示
+    gsap.to(".container", {
+        duration: 0.5,
+        opacity: 1,
+        ease: "power2.inOut",
+        delay: 0.2
+    });
+
+    // base.htmlで描画されている3D背景のパーティクルの色を赤に変更する
+    // Three.jsのオブジェクトに直接アクセスするのは難しいため、
+    // ここでは新しいパーティクルシステムを前面に重ねて「上書き」する手法をとります。
+    
+    const alertScene = new THREE.Scene();
+    const alertCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const alertRenderer = new THREE.WebGLRenderer({ alpha: true });
+    alertRenderer.setSize(window.innerWidth, window.innerHeight);
+    
+    // レンダラーのDOM要素をbodyの先頭に追加して、元のcanvasの上に重ねる
+    alertRenderer.domElement.style.position = 'fixed';
+    alertRenderer.domElement.style.top = '0';
+    alertRenderer.domElement.style.left = '0';
+    alertRenderer.domElement.style.zIndex = '-1'; // 元の背景とコンテンツの間に配置
+    document.body.prepend(alertRenderer.domElement);
+
+    const particleCount = 5000;
+    const particles = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount * 3; i++) {
+        positions[i] = (Math.random() - 0.5) * 15;
+    }
+    particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const particleMaterial = new THREE.PointsMaterial({
+        color: 0xff003c, // --danger-color
+        size: 0.02,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+    });
+    const particleSystem = new THREE.Points(particles, particleMaterial);
+    alertScene.add(particleSystem);
+
+    alertCamera.position.z = 5;
+
+    function animateAlert() {
+        requestAnimationFrame(animateAlert);
+        particleSystem.rotation.y += 0.0005; // 少し速めに回転
+        alertRenderer.render(alertScene, alertCamera);
+    }
+    animateAlert();
+
+    window.addEventListener('resize', () => {
+        alertCamera.aspect = window.innerWidth / window.innerHeight;
+        alertCamera.updateProjectionMatrix();
+        alertRenderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}同意ありがとうございます{% endblock %}
+
+{% block head_style %}
+<style>
+    /* メインのコンテンツコンテナ */
+    .container {
+        background: rgba(40, 167, 69, 0.2); /* 同意ボタンの緑色を薄くした背景 */
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(40, 167, 69, 0.5);
+        border-radius: 20px;
+        padding: 3rem;
+        width: 90%;
+        max-width: 600px;
+        text-align: center;
+        opacity: 0; /* GSAPでのアニメーションのため初期状態は非表示 */
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    /* タイトル */
+    h1 {
+        font-size: 2.5rem;
+        color: #28a745; /* 緑色 */
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        text-shadow: 0 0 15px rgba(40, 167, 69, 0.7);
+    }
+
+    /* 説明文 */
+    p {
+        font-size: 1.2rem;
+        line-height: 1.7;
+        margin-bottom: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>プロトコルに同意しました</h1>
+    <p>来年、TMHKchatが正式に運用されます！</p>
+    <p>チャットチャンネルへ転送します...</p>
+</div>
+{% endblock %}
+
+{% block body_script %}
+<script>
+    // GSAPを使ってコンテナを拡大しながら表示
+    gsap.from(".container", {
+        duration: 0.8,
+        opacity: 0,
+        scale: 0.8,
+        ease: "back.out(1.7)"
+    });
+
+    // 2.5秒後にチャット画面へ自動で遷移
+    setTimeout(() => {
+        window.location.href = "{{ url_for('chat') }}";
+    }, 2500);
+</script>
+{% endblock %}

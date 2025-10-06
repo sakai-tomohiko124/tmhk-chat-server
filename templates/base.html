@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 各ページでタイトルを書き換えられるように block を用意 -->
+    <title>{% block title %}TMHKchat{% endblock %}</title>
+    
+    <!-- Google FontsからLexendを読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        /* CSS変数を定義し、サイト全体の色やフォントを統一 */
+        :root {
+            --bg-color: #0a0a1a;
+            --primary-color: #9f78ff;
+            --secondary-color: #a2d2ff;
+            --text-color: #e0e0e0;
+            --danger-color: #ff003c;
+            --font-family: 'Lexend', sans-serif;
+        }
+
+        /* 基本的なスタイルリセット */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            overflow: hidden; /* スクロールバーを非表示にし、3D背景を全画面に固定 */
+            font-size: 1.125rem; /* 約18px */
+        }
+
+        /* 3D背景を描画するためのキャンバス */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1; /* コンテンツの背面に配置 */
+            opacity: 0.7;
+        }
+
+        /* 各ページのコンテンツを中央に配置するためのラッパー */
+        .content-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        /* リアルタイム時刻表示 */
+        .realtime-clock {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(20, 20, 40, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 10px 20px;
+            color: var(--secondary-color);
+            font-family: var(--font-family);
+            font-weight: 500;
+            font-size: 0.9rem;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .realtime-clock.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .clock-date {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+
+        .clock-time {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        /* 戻るボタンのスタイル */
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(159, 120, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(159, 120, 255, 0.3);
+            border-radius: 50px;
+            width: 50px;
+            height: 50px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(159, 120, 255, 0.2);
+        }
+
+        .back-button:hover {
+            background: rgba(159, 120, 255, 0.3);
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(159, 120, 255, 0.3);
+        }
+
+        .back-button.show {
+            display: flex;
+            opacity: 0;
+            transform: translateX(-10px);
+            animation: slideInLeft 0.5s ease forwards;
+        }
+
+        @keyframes slideInLeft {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* モバイル対応 */
+        @media (max-width: 768px) {
+            .back-button {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+            
+            .realtime-clock {
+                top: 15px;
+                right: 15px;
+                padding: 8px 16px;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* フッターリンク */
+        .footer-links {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .footer-link {
+            background: rgba(20, 20, 40, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 8px 16px;
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            opacity: 0.8;
+        }
+
+        .footer-link:hover {
+            background: rgba(159, 120, 255, 0.2);
+            border-color: rgba(159, 120, 255, 0.3);
+            transform: translateY(-2px);
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .footer-links {
+                bottom: 15px;
+                gap: 10px;
+            }
+            
+            .footer-link {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+    
+    <!-- 各ページ固有のCSSを記述するための block -->
+    {% block head_style %}{% endblock %}
+</head>
+<body>
+    <!-- 3D背景の描画エリア -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- 戻るボタン -->
+    <a href="#" class="back-button" id="backButton" onclick="goBack(); return false;">
+        ←
+    </a>
+
+    <!-- リアルタイム時刻表示 -->
+    <div class="realtime-clock" id="realtimeClock">
+        <div class="clock-date" id="clockDate"></div>
+        <div class="clock-time" id="clockTime"></div>
+    </div>
+
+    <!-- 各ページのメインコンテンツがここに挿入される -->
+    <div class="content-wrapper">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- フッターリンク -->
+    <div class="footer-links">
+        <a href="/terms" class="footer-link">利用規約</a>
+        <a href="/" class="footer-link">ホーム</a>
+    </div>
+
+    <!-- 必要なJavaScriptライブラリをCDNから読み込み -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+
+    <!-- 3D背景を生成・アニメーションさせるためのスクリプト -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('bg-canvas'), 
+                alpha: true // 背景を透過させる
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            const particleCount = 7000;
+            const particles = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 15; // パーティクルを空間にランダム配置
+            }
+            particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const particleMaterial = new THREE.PointsMaterial({
+                color: 0x9f78ff, // --primary-color と同じ色
+                size: 0.015,
+                transparent: true,
+                blending: THREE.AdditiveBlending, // パーティクルが重なると明るくなる
+            });
+            const particleSystem = new THREE.Points(particles, particleMaterial);
+            scene.add(particleSystem);
+
+            camera.position.z = 5;
+
+            const mouse = new THREE.Vector2();
+            const handleMouseMove = (event) => {
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            };
+            window.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+            const handleResize = () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            };
+            window.addEventListener('resize', handleResize);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                particleSystem.rotation.y += 0.0003; // ゆっくりと回転
+                // マウスの動きに追従してカメラを動かす
+                camera.position.x += (mouse.x * 0.5 - camera.position.x) * 0.02;
+                camera.position.y += (mouse.y * 0.5 - camera.position.y) * 0.02;
+                camera.lookAt(scene.position);
+                renderer.render(scene, camera);
+            }
+            animate();
+        });
+
+        // リアルタイム時刻表示機能
+        function updateRealTimeClock() {
+            const now = new Date();
+            const clockDate = document.getElementById('clockDate');
+            const clockTime = document.getElementById('clockTime');
+            const clockElement = document.getElementById('realtimeClock');
+            
+            if (clockDate && clockTime) {
+                // 日付フォーマット（例: 2025年10月6日 月曜日）
+                const dateOptions = { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    weekday: 'long' 
+                };
+                clockDate.textContent = now.toLocaleDateString('ja-JP', dateOptions);
+                
+                // 時刻フォーマット（例: 14:35:42）
+                const timeString = now.toLocaleTimeString('ja-JP', { 
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                clockTime.textContent = timeString;
+                
+                // 初回表示アニメーション
+                if (!clockElement.classList.contains('show')) {
+                    setTimeout(() => {
+                        clockElement.classList.add('show');
+                    }, 500);
+                }
+            }
+        }
+
+        // 1秒ごとに時刻を更新
+        setInterval(updateRealTimeClock, 1000);
+        
+        // ページ読み込み時に即座に時刻を表示
+        document.addEventListener('DOMContentLoaded', updateRealTimeClock);
+
+        // 戻るボタンの機能
+        function goBack() {
+            // ブラウザの履歴がある場合は戻る、なければトップページへ
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/';
+            }
+        }
+
+        // 戻るボタンの表示制御
+        function initBackButton() {
+            const backButton = document.getElementById('backButton');
+            const currentPath = window.location.pathname;
+            
+            // トップページ以外では戻るボタンを表示
+            if (currentPath !== '/' && currentPath !== '/index' && backButton) {
+                backButton.classList.add('show');
+            }
+        }
+
+        // ページ読み込み時に戻るボタンを初期化
+        document.addEventListener('DOMContentLoaded', initBackButton);
+    </script>
+    
+    <!-- 各ページ固有のJavaScriptを記述するための block -->
+    {% block body_script %}{% endblock %}
+</body>
+</html>

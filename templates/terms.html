@@ -1,0 +1,148 @@
+
+{% extends "base.html" %}
+
+{% block title %}利用規約{% endblock %}
+
+{% block head_style %}
+
+<style>
+/* メインのコンテンツコンテナ */
+.container {
+background: rgba(255, 255, 255, 0.08);
+backdrop-filter: blur(20px); /* すりガラス効果 */
+-webkit-backdrop-filter: blur(20px);
+border: 1px solid rgba(255, 255, 255, 0.15);
+border-radius: 20px;
+padding: 2rem;
+width: 90%;
+max-width: 700px;
+text-align: center;
+opacity: 0; /* GSAPでのアニメーションのため初期状態は非表示 */
+box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* タイトル */
+h1 {
+font-size: 2.2rem;
+color: #fff;
+margin-top: 0;
+margin-bottom: 1.5rem;
+}
+
+/* 規約テキストを表示するエリア */
+.terms-content {
+background: rgba(0, 0, 0, 0.2);
+padding: 1.5rem;
+border-radius: 10px;
+max-height: 50vh; /* 画面の高さの50%を最大高に */
+overflow-y: auto; /* 内容がはみ出たらスクロールバーを表示 */
+text-align: left;
+margin-bottom: 2rem;
+line-height: 1.8;
+font-size: 1rem;
+font-weight: 300;
+}
+
+/* スクロールバーのスタイルをモダンに */
+.terms-content::-webkit-scrollbar {
+width: 5px;
+}
+.terms-content::-webkit-scrollbar-track {
+background: transparent;
+}
+.terms-content::-webkit-scrollbar-thumb {
+background: var(--primary-color);
+border-radius: 5px;
+}
+
+/* ボタンを配置するエリア */
+.buttons {
+display: flex;
+flex-direction: column; /* スマホでは縦並び */
+gap: 1rem;
+}
+
+/* ボタン共通スタイル */
+button {
+padding: 1rem;
+border: none;
+border-radius: 10px;
+color: #fff;
+font-size: 1.25rem;
+font-family: var(--font-family);
+cursor: pointer;
+transition: all 0.3s ease;
+}
+
+button.agree {
+background-image: linear-gradient(45deg, #28a745, #2ecc71); /* 緑系グラデーション */
+}
+button.disagree {
+background-image: linear-gradient(45deg, #e74c3c, #c0392b); /* 赤系グラデーション */
+}
+
+button:hover {
+transform: translateY(-3px);
+box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* PC (幅768px以上) ではボタンを横並びに */
+@media (min-width: 768px) {
+.buttons {
+flex-direction: row;
+}
+button {
+width: 100%;
+}
+}
+</style>
+
+
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+<h1>アクセスプロトコル</h1>
+<div class="terms-content">
+<!-- サーバーから渡された規約テキストを表示 -->
+<p>{{ terms_text }}</p>
+<p>ポイントはメッセージを送信するか、友達を招待すると貯まります。ランキング上位を目指して頑張ってください！</p>
+<p>なお、当サービスで獲得したポイントは、金銭的価値を持つものではありません。</p>
+<p>不適切な発言（NGワード）を検知した場合、ペナルティとして全ポイントがリセットされます。</p>
+</div>
+<div class="buttons">
+<!-- 同意ボタン -->
+<form method="POST" action="{{ url_for('agree') }}" style="flex: 1;">
+<button type="submit" name="agree_button" value="true" class="agree">同意する</button>
+</form>
+<!-- 同意しないボタン -->
+<form method="POST" action="{{ url_for('agree') }}" style="flex: 1;">
+<button type="submit" name="disagree_button" value="true" class="disagree">同意しない</button>
+</form>
+</div>
+</div>
+{% endblock %}
+
+
+{% block body_script %}
+
+<script>
+// GSAPを使ってコンテナを下からふわっと表示させる
+gsap.to(".container", {
+duration: 1,
+opacity: 1,
+y: 0, // 最終位置
+ease: "power3.out"
+});
+
+// 初期状態を設定
+gsap.set(".container", {
+opacity: 0,
+y: 30 // 30px下から開始
+});
+</script>
+
+
+{% endblock %}
+

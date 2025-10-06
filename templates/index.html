@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}TMHKchat{% endblock %}
+
+{% block head_style %}
+<style>
+    /* メインのコンテンツコンテナ */
+    .container {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(25px); /* すりガラス効果 */
+        -webkit-backdrop-filter: blur(25px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        padding: 2.5rem;
+        width: 90%;
+        max-width: 450px;
+        text-align: center;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        opacity: 0; /* GSAPでのアニメーションのため初期状態は非表示 */
+    }
+
+    /* タイトル */
+    h1 {
+        font-size: 2.5rem;
+        font-weight: 500;
+        color: #fff;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        letter-spacing: 2px;
+    }
+
+    /* 説明文 */
+    p {
+        margin-bottom: 2rem;
+        font-weight: 300;
+        opacity: 0.8;
+    }
+
+    /* 入力フォーム */
+    input[type="text"] {
+        width: 100%;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-color);
+        font-size: 1.125rem;
+        font-family: var(--font-family);
+        transition: all 0.3s ease;
+    }
+
+    input[type="text"]::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    input[type="text"]:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 15px rgba(159, 120, 255, 0.5);
+    }
+
+    /* 送信ボタン */
+    button {
+        width: 100%;
+        padding: 1rem;
+        border: none;
+        border-radius: 10px;
+        background-image: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        color: #fff;
+        font-size: 1.25rem;
+        font-family: var(--font-family);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    button:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* エラーメッセージ（フラッシュメッセージ）用のスタイル */
+    .flash-message {
+        padding: 1rem;
+        background-color: rgba(255, 0, 60, 0.5); /* var(--danger-color)を半透明に */
+        color: white;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        border: 1px solid var(--danger-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- サーバーから送信されたフラッシュメッセージがあれば表示 -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash-message">
+                {{ messages[0] }}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <h1 class="anim-item">TMHKchat(仮)</h1>
+    <p class="anim-item">2035年の最先端コミュニケーションアプリへようこそ</p>
+    
+    <form method="POST" class="anim-item">
+        <input type="text" name="username" placeholder="ユーザー名を入力" required autocomplete="off">
+        <button type="submit">開始</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block body_script %}
+<script>
+    // GSAPを使って要素をアニメーションさせる
+    // ページ読み込み時にコンテナ全体がふわっと表示される
+    gsap.to(".container", {
+        duration: 1.5,
+        opacity: 1,
+        ease: "expo.out"
+    });
+
+    // コンテナ内の各要素が少し遅れて下から順番に表示される
+    gsap.from(".anim-item", {
+        duration: 1,
+        opacity: 0,
+        y: 30, // 30px下から
+        stagger: 0.2, // 0.2秒ずつずらして
+        delay: 0.5, // 0.5秒後から開始
+        ease: "power3.out"
+    });
+</script>
+{% endblock %}
