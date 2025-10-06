@@ -844,7 +844,7 @@ if __name__ == '__main__':
         init_db()
     
     # 本番環境用設定
-    # socketio.run(app, host='0.0.0.0', port=5000, debug=False)  # 本番環境用
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)  # 本番環境用
     
     # 開発環境用設定（本番環境では下記をコメントアウト）
-    socketio.run(app, debug=True, use_reloader=False)
+    #socketio.run(app, debug=True, use_reloader=False)
