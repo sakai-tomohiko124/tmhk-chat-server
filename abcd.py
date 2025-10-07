@@ -1,4 +1,3 @@
-import sqlite3
 import secrets
 import json
 import os
@@ -8,247 +7,32 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
+from db import get_db_connection, init_db, get_leaderboard_data
+from helpers import is_valid_message_content
+from scraping import get_weather_info, get_train_delay_info
 
 # ----------------------------------------
 # 本番環境用ログ設定
 # ----------------------------------------
-# 本番環境ではログレベルをWARNING以上に設定することを推奨
-if os.environ.get('FLASK_ENV') == 'production':
-    logging.basicConfig(level=logging.WARNING)
-else:
-    logging.basicConfig(level=logging.INFO)
+os.environ['FLASK_ENV'] = 'production'  # 強制的に本番環境へ
+logging.basicConfig(level=logging.WARNING)
 
 # ----------------------------------------
 # アプリケーションの初期設定
 # ----------------------------------------
-app = Flask(__name__)
-# 本番環境では環境変数 SECRET_KEY を設定してください
-app.secret_key = os.environ.get('SECRET_KEY', 'your_very_secret_key_for_tmhkchat_2035')
 
-# 本番環境用のセキュリティ設定
-if os.environ.get('FLASK_ENV') == 'production':
-    app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS必須
-    app.config['SESSION_COOKIE_HTTPONLY'] = True  # XSS対策
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF対策
+app = Flask(__name__)
+# 本番用の強力なSECRET_KEY（環境変数優先、なければ固定値）
+app.secret_key = os.environ.get('SECRET_KEY', 'skytomohiko124')
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS必須
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # XSS対策
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF対策
 
 socketio = SocketIO(app, async_mode='threading')
-
-# ----------------------------------------
-# 定数とグローバル変数
-# ----------------------------------------
-DATABASE = 'abc.db'
-ADMIN_USERNAME = 'skytomo124'
-
-# 管理者の応答モード管理
-admin_auto_mode = True  # True: 自動応答, False: 手動応答
-NG_WORDS = ["やば","ザコ","くさ","AIともひこ","ひこ","ポテト","ねずひこ","おかしい","うそ","大丈夫","？","どうした","え？","は？","あっそ","ふーん","ふざ","でしょ","デッキブラシ","ブチコ","どっち","ん？","すいません","とも","馬鹿", "アホ", "死ね", "殺す", "馬鹿野郎", "バカ","クソ", "糞", "ちくしょう", "畜生", "くたばれ", "うん","おかしい","ばか","学習"]
-
-# オンライン状態のユーザーを管理するための辞書 {user_id: session_id}
 online_users = {}
+from config import DATABASE, ADMIN_USERNAME, NG_WORDS
+from scraping import get_weather_info, get_train_delay_info
 
-# ----------------------------------------
-# データベース関連の関数
-# ----------------------------------------
-def get_db_connection():
-    """データベース接続を取得する"""
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    """データベースを初期化する (abc.sqlを実行)"""
-    conn = get_db_connection()
-    with open('abc.sql', 'r', encoding='utf-8') as f:
-        conn.executescript(f.read())
-    
-    # 既存のusersテーブルにpasswordカラムが存在しない場合は追加
-    try:
-        conn.execute('SELECT password FROM users LIMIT 1')
-    except sqlite3.OperationalError:
-        # passwordカラムが存在しない場合、追加する
-        conn.execute('ALTER TABLE users ADD COLUMN password TEXT NOT NULL DEFAULT ""')
-        print("passwordカラムを既存のusersテーブルに追加しました。")
-    
-    conn.close()
-    print("データベースが初期化されました。")
-
-# ----------------------------------------
-# ヘルパー関数
-# ----------------------------------------
-def is_valid_message_content(message):
-    """メッセージ内容が有効かチェック（テキスト、リンク、絵文字のみ許可）"""
-    import re
-    
-    # 基本的な文字（ひらがな、カタカナ、漢字、英数字、記号）
-    basic_chars = r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\u0020-\u007E]'
-    
-    # 絵文字の範囲
-    emoji_chars = r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\U00002600-\U000027BF\U0001f900-\U0001f9ff\U0001f018-\U0001f270]'
-    
-    # URLパターン
-    url_pattern = r'https?://[\w\-._~:/?#\[\]@!$&\'()*+,;=%]+'
-    
-    # 許可される文字パターン
-    allowed_pattern = f'({basic_chars}|{emoji_chars}|{url_pattern})+'
-    
-    # 全体が許可されるパターンにマッチするかチェック
-    return re.fullmatch(allowed_pattern, message) is not None
-
-def get_leaderboard_data(user_id=None):
-    """ランキング上位5名と指定ユーザーの順位を取得する"""
-    conn = get_db_connection()
-    leaderboard = conn.execute(
-        'SELECT username, balance FROM users ORDER BY balance DESC, registered_at ASC LIMIT 5'
-    ).fetchall()
-    
-    my_rank = None
-    if user_id:
-        my_rank_query = conn.execute(
-            'SELECT COUNT(*) + 1 as rank FROM users WHERE balance > (SELECT balance FROM users WHERE id = ?)',
-            (user_id,)
-        ).fetchone()
-        my_rank = my_rank_query['rank'] if my_rank_query else 1
-
-    conn.close()
-    return leaderboard, my_rank
-
-# ----------------------------------------
-# Webスクレイピング関数
-# ----------------------------------------
-def get_weather_info():
-    """気象庁から東京の天気予報を取得"""
-    try:
-        # 気象庁API（実際のJSON形式のデータ）
-        url = "https://www.jma.go.jp/bosai/forecast/data/forecast/130000.json"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
-            'Referer': 'https://www.jma.go.jp/',
-            'Cache-Control': 'no-cache'
-        }
-        
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        
-        if response.status_code != 200:
-            raise Exception(f"HTTP {response.status_code}")
-        
-        data = response.json()
-        
-        # データ構造を確認
-        if not data or len(data) == 0:
-            raise Exception("データが空です")
-        
-        # 今日の天気情報を抽出
-        forecast = data[0]['timeSeries'][0]
-        today_weather = forecast['areas'][0]['weathers'][0]
-        
-        # 気温情報を取得（オプショナル）
-        max_temp = "情報なし"
-        min_temp = "情報なし"
-        
-        try:
-            if len(data[0]['timeSeries']) > 2:
-                temp_data = data[0]['timeSeries'][2]['areas'][0]
-                if 'temps' in temp_data and temp_data['temps']:
-                    max_temp = temp_data['temps'][0] if temp_data['temps'][0] else "情報なし"
-                    min_temp = temp_data['temps'][1] if len(temp_data['temps']) > 1 and temp_data['temps'][1] else "情報なし"
-        except:
-            pass  # 気温情報がない場合はスキップ
-        
-        return {
-            'status': 'success',
-            'weather': today_weather,
-            'max_temp': max_temp,
-            'min_temp': min_temp,
-            'area': '東京'
-        }
-        
-    except Exception as e:
-        print(f"天気情報取得エラー: {str(e)}")
-        return {
-            'status': 'error',
-            'message': '未実装'
-        }
-
-def get_train_delay_info():
-    """Yahoo!乗換案内から関東地方の電車遅延情報を取得"""
-    try:
-        # ユーザーエージェントを更新してブロックされにくくする
-        url = "https://transit.yahoo.co.jp/diainfo/area/4"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://transit.yahoo.co.jp/',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Cache-Control': 'no-cache'
-        }
-        
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        
-        if response.status_code != 200:
-            raise Exception(f"HTTP {response.status_code}")
-        
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # 遅延情報のセクションを探す
-        delay_info = []
-        
-        # いくつかのパターンでデータを探す
-        selectors_to_try = [
-            'li.trouble',
-            '.trouble',
-            '.diainfo-trouble',
-            '.lineinfo',
-            'tr.trouble'
-        ]
-        
-        for selector in selectors_to_try:
-            trouble_elements = soup.select(selector)
-            if trouble_elements:
-                for item in trouble_elements[:5]:  # 最大5件
-                    line_link = item.find('a')
-                    if line_link:
-                        line_name = line_link.get_text(strip=True)
-                        if line_name and '線' in line_name:
-                            delay_info.append({
-                                'line': line_name,
-                                'status': '遅延'
-                            })
-                break
-        
-        # 遅延情報がない場合の代替処理
-        if not delay_info:
-            # 通常運行の路線も含めて情報を取得
-            line_links = soup.find_all('a', href=lambda x: x and 'diainfo' in str(x))
-            for item in line_links[:3]:  # 最大3件
-                line_name = item.get_text(strip=True)
-                if line_name and '線' in line_name:
-                    delay_info.append({
-                        'line': line_name,
-                        'status': '平常運転'
-                    })
-        
-        # データがない場合はサンプルを返さない
-        if not delay_info:
-            raise Exception("遅延情報を取得できませんでした")
-        
-        return {
-            'status': 'success',
-            'delays': delay_info
-        }
-        
-    except Exception as e:
-        print(f"電車遅延情報取得エラー: {str(e)}")
-        return {
-            'status': 'error',
-            'message': '未実装'
-        }
 
 # ----------------------------------------
 # 自動応答データの読み込み
@@ -258,155 +42,92 @@ with open('qa_data.json', 'r', encoding='utf-8') as f:
 
 # ----------------------------------------
 # Flask ルート定義
-# ----------------------------------------
-
-@app.route('/', methods=['GET'])
-def index():
-    """トップページ（最初にloading.htmlを表示）"""
-    return redirect(url_for('loading'))
-
-@app.route('/loading')
-def loading():
-    """ローディング画面（利用規約へ自動遷移）"""
-    return render_template('loading.html')
-
-@app.route('/auth', methods=['GET', 'POST'])
-def auth():
-    """認証画面（旧統合画面）- 新しいシステムでは/loginにリダイレクト"""
-    return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """ログイン専用画面"""
-    if 'invite' in request.args:
-        session['invite_code'] = request.args.get('invite')
-
+    """ログイン画面（GET:表示, POST:認証）"""
     if request.method == 'POST':
-        username = request.form['username'].strip()
-        password = request.form['password'].strip()
-        
-        if not username:
-            flash('ユーザー名を入力してください。')
-            return redirect(url_for('login'))
-            
-        if len(password) < 2:
-            flash('パスワードは2文字以上で入力してください。')
-            return redirect(url_for('login'))
-
-        # 管理者ログイン
-        if username == ADMIN_USERNAME:
-            if password == "skytomo124":  # 本番環境では環境変数から取得することを推奨
-                session['user_id'] = 0
-                session['username'] = ADMIN_USERNAME
-                session['is_admin'] = True
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        if not username or not password:
+            flash('ユーザー名とパスワードを入力してください。', 'error')
+            return render_template('login.html')
+        conn = get_db_connection()
+        user = conn.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password)).fetchone()
+        conn.close()
+        if user:
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            # 厳密な管理者判定（DBのusernameとADMIN_USERNAMEを比較）
+            session['is_admin'] = str(user['username']).strip().lower() == str(ADMIN_USERNAME).strip().lower()
+            flash('ログイン成功！', 'success')
+            if session['is_admin']:
                 return redirect(url_for('admin_dashboard'))
             else:
-                flash('管理者パスワードが正しくありません。')
-                return redirect(url_for('login'))
-
-        conn = get_db_connection()
-        user = conn.execute('SELECT id, password FROM users WHERE username = ?', (username,)).fetchone()
-        
-        if user:
-            # 既存ユーザーのログイン
-            if user['password'] == password:
-                session['user_id'] = user['id']
-                session['username'] = username
-                session.pop('is_admin', None)
-                
-                # 招待コード処理
-                if 'invite_code' in session:
-                    inviter = conn.execute('SELECT id FROM users WHERE invite_code = ?', (session['invite_code'],)).fetchone()
-                    if inviter and inviter['id'] != user['id']:
-                        conn.execute('UPDATE users SET balance = balance + 1000 WHERE id = ?', (inviter['id'],))
-                        socketio.emit('update_balance_silent', {'user_id': inviter['id']})
-                    session.pop('invite_code', None)
-                
-                # ユーザー合意処理
-                existing_agreement = conn.execute('SELECT id FROM user_agreements WHERE user_id = ?', (user['id'],)).fetchone()
-                if not existing_agreement:
-                    conn.execute('INSERT INTO user_agreements (user_id, agreement_status) VALUES (?, ?)', (user['id'], 'agreed'))
-                
-                conn.commit()
-                conn.close()
-                
-                leaderboard, _ = get_leaderboard_data()
-                socketio.emit('update_leaderboard', {'leaderboard': [dict(row) for row in leaderboard]})
-                
-                return redirect(url_for('chat'))
-            else:
-                conn.close()
-                flash('パスワードが正しくありません。')
-                return redirect(url_for('login'))
+                return redirect(url_for('check_login_status'))
         else:
-            conn.close()
-            flash('ユーザーが見つかりません。新規登録画面で登録してください。')
-            return redirect(url_for('login'))
-
+            flash('ユーザー名またはパスワードが間違っています。', 'error')
+            return render_template('login.html')
+    # GET: 画面表示
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """新規登録専用画面"""
-    if 'invite' in request.args:
-        session['invite_code'] = request.args.get('invite')
-
+    """新規登録画面（GET:表示, POST:登録処理）"""
     if request.method == 'POST':
-        username = request.form['username'].strip()
-        password = request.form['password'].strip()
-        
-        if not username:
-            flash('ユーザー名を入力してください。')
-            return redirect(url_for('register'))
-            
-        if len(password) < 2:
-            flash('パスワードは2文字以上で入力してください。')
-            return redirect(url_for('register'))
-
-        # 管理者ユーザー名の重複チェック
-        if username == ADMIN_USERNAME:
-            flash('そのユーザー名は使用できません。')
-            return redirect(url_for('register'))
-
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        if not username or not password:
+            flash('ユーザー名とパスワードを入力してください。', 'error')
+            return render_template('register.html')
         conn = get_db_connection()
-        user = conn.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
-        
-        if user:
+        exists = conn.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
+        if exists:
             conn.close()
-            flash('そのユーザー名は既に使用されています。')
-            return redirect(url_for('register'))
-        
-        # 新規ユーザー登録
-        invite_code = secrets.token_urlsafe(8)
-        cursor = conn.execute('INSERT INTO users (username, password, invite_code) VALUES (?, ?, ?)', 
-                            (username, password, invite_code))
-        conn.commit()
-        user_id = cursor.lastrowid
-
-        session['user_id'] = user_id
-        session['username'] = username
-        session.pop('is_admin', None)
-
-        # 招待コード処理
-        if 'invite_code' in session:
-            inviter = conn.execute('SELECT id FROM users WHERE invite_code = ?', (session['invite_code'],)).fetchone()
-            if inviter and inviter['id'] != user_id:
-                conn.execute('UPDATE users SET balance = balance + 1000 WHERE id = ?', (inviter['id'],))
-                socketio.emit('update_balance_silent', {'user_id': inviter['id']})
-            session.pop('invite_code', None)
-
-        # ユーザー合意処理
-        conn.execute('INSERT INTO user_agreements (user_id, agreement_status) VALUES (?, ?)', (user_id, 'agreed'))
+            flash('このユーザー名は既に登録されています。', 'error')
+            return render_template('register.html')
+        import random, string
+        invite_code = request.args.get('invite', '')
+        if not invite_code:
+            invite_code = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        exists_code = conn.execute('SELECT id FROM users WHERE invite_code = ?', (invite_code,)).fetchone()
+        if exists_code:
+            conn.close()
+            flash('この招待コードは既に使用されています。', 'error')
+            return render_template('register.html')
+        conn.execute('INSERT INTO users (username, password, balance, invite_code) VALUES (?, ?, ?, ?)', (username, password, 0, invite_code))
         conn.commit()
         conn.close()
-        
-        leaderboard, _ = get_leaderboard_data()
-        socketio.emit('update_leaderboard', {'leaderboard': [dict(row) for row in leaderboard]})
-
-        # 新規登録後は直接チャット画面へ（利用規約は表示しない）
-        return redirect(url_for('chat'))
-
+        flash('登録が完了しました。ログインしてください。', 'success')
+        return redirect(url_for('login'))
+    # GET: 画面表示
     return render_template('register.html')
+
+@app.route('/loading')
+def loading():
+    """ローディング画面（利用規約同意後の遷移用）"""
+    next_url = request.args.get('next', url_for('login'))
+    # ローディング画面を表示し、数秒後にnext_urlへ遷移（JSで自動遷移）
+    return render_template('loading.html', next_url=next_url)
+# ----------------------------------------
+
+@app.route('/', methods=['GET'])
+def index():
+    """トップページ（初回は利用規約、2回目はloading→ログイン、3回目以降はloading→chatまたはログイン）"""
+    if not session.get('terms_agreed'):
+        return redirect(url_for('terms'))
+    if not session.get('terms_shown'):
+        session['terms_shown'] = 1
+        return redirect(url_for('loading', next=url_for('login')))
+    elif session['terms_shown'] == 1:
+        session['terms_shown'] = 2
+        return redirect(url_for('loading', next=url_for('login')))
+    else:
+        session['terms_shown'] += 1
+        if 'user_id' in session:
+            return redirect(url_for('loading', next=url_for('chat')))
+        else:
+            return redirect(url_for('login'))
 
 @app.route('/check_user', methods=['POST'])
 def check_user():
@@ -423,21 +144,97 @@ def check_user():
     
     return {'exists': user is not None}
 
+@app.route('/logout')
+def logout():
+    """ログアウト機能"""
+    user_id = session.get('user_id')
+    
+    # オンライン状態をクリア
+    if user_id and user_id in online_users:
+        del online_users[user_id]
+
+        socketio.emit('user_status_change', {'user_id': user_id, 'status': 'offline'})
+    
+    # セッションをクリア
+    session.clear()
+    flash('ログアウトしました。')
+    return redirect(url_for('check_login_status'))
+
+@app.route('/check_login_status')
+def check_login_status():
+    """ログイン状態をチェックして適切な画面に遷移"""
+    # ログイン済みの場合
+    if 'user_id' in session:
+        if session.get('is_admin'):
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return redirect(url_for('chat'))
+    else:
+        # 未ログインの場合はログイン画面へ
+        return redirect(url_for('login'))
+
+@app.route('/admin/keep_memo', methods=['GET', 'POST'], endpoint='keep_memo')
+def keep_memo():
+    """
+    管理者用Keepメモ画面（ユーザーが1人もいない場合のみ表示）
+    POSTでメモ保存、GETで表示
+    """
+    if not session.get('is_admin'):
+        return redirect(url_for('index'))
+    conn = get_db_connection()
+    memo_content = ''
+    saved = False
+    if request.method == 'POST':
+        memo_content = request.form.get('memo', '').strip()
+        if memo_content:
+            # 既存メモがあればUPDATE、なければINSERT
+            exists = conn.execute('SELECT id FROM admin_memo LIMIT 1').fetchone()
+            if exists:
+                conn.execute('UPDATE admin_memo SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', (memo_content, exists['id']))
+            else:
+                conn.execute('INSERT INTO admin_memo (content) VALUES (?)', (memo_content,))
+            conn.commit()
+            saved = True
+    # 最新メモ取得
+    memo_row = conn.execute('SELECT content FROM admin_memo ORDER BY updated_at DESC LIMIT 1').fetchone()
+    if memo_row:
+        memo_content = memo_row['content']
+    conn.close()
+    # 招待リンクのURL例: /register?invite=xxxx
+    import secrets
+    from datetime import datetime, timedelta
+    conn2 = get_db_connection()
+    now = datetime.now()
+    invite = conn2.execute('SELECT * FROM invites WHERE expires_at > ? AND used = 0 ORDER BY created_at DESC LIMIT 1', (now,)).fetchone()
+    if not invite:
+        code = secrets.token_urlsafe(12)
+        created_at = now
+        expires_at = now + timedelta(hours=124)
+        conn2.execute('INSERT INTO invites (code, created_at, expires_at) VALUES (?, ?, ?)', (code, created_at, expires_at))
+        conn2.commit()
+        invite = conn2.execute('SELECT * FROM invites WHERE code = ?', (code,)).fetchone()
+    conn2.close()
+    invite_url = url_for('register', invite=invite['code'], _external=True)
+    expires_at_str = invite['expires_at']
+    return render_template('keep_memo.html', invite_url=invite_url, expires_at=expires_at_str, memo_content=memo_content, saved=saved)
 @app.route('/terms')
 def terms():
     """利用規約画面"""
+    # すでに同意済みならログイン画面へ
+    if session.get('terms_agreed'):
+        return redirect(url_for('login'))
     return render_template('terms.html', terms_text="TMHKchatの利用規約...（ここに規約本文が入ります）")
 
 @app.route('/agree', methods=['POST'])
 def agree():
     """利用規約同意処理"""
     if request.form.get('agree_button'):
-        # 利用規約に同意した場合、ログイン画面に遷移
-        return redirect(url_for('login'))
+        # 利用規約に同意した場合、フラグをセットしてloading画面経由でログイン画面へ
+        session['terms_agreed'] = True
+        return redirect(url_for('loading', next=url_for('login')))
     elif request.form.get('disagree_button'):
         # 利用規約に同意しない場合、disagree.htmlを表示
         return render_template('disagree.html', username=session.get('username', 'ゲスト'))
-    
     return redirect(url_for('terms'))
 
 @app.route('/virus')
@@ -445,8 +242,15 @@ def virus_screen():
     """NG_WORDS違反時のウイルス感染画面"""
     if not session.get('ng_violation'):
         return redirect(url_for('chat'))
-    
+
     ng_word = session.get('ng_word_used', '不適切な発言')
+    user_id = session.get('user_id')
+    # ウイルス画面遷移を記録
+    if user_id:
+        conn = get_db_connection()
+        conn.execute('INSERT INTO virus_log (user_id) VALUES (?)', (user_id,))
+        conn.commit()
+        conn.close()
     return render_template('disagree.html', 
                          username=session.get('username'), 
                          ng_word=ng_word,
@@ -464,6 +268,7 @@ def apologize():
         return redirect(url_for('chat'))
     
     # 管理者に通知を送信
+
     socketio.emit('ng_word_apology', {
         'user_id': user_id,
         'username': username,
@@ -471,12 +276,6 @@ def apologize():
         'ng_word': ng_word,
         'timestamp': datetime.now().isoformat()
     })
-    
-    # セッションからNG_WORDS違反フラグを削除
-    session.pop('ng_violation', None)
-    session.pop('ng_message', None)
-    session.pop('ng_word_used', None)
-    
     flash('謝罪を受け付けました。今後は適切な発言を心がけてください。', 'info')
     return redirect(url_for('chat'))
 
@@ -503,42 +302,94 @@ def api_train_delay():
 def chat():
     """メインのチャット画面"""
     user_id = session.get('user_id')
-    if not user_id or session.get('is_admin'):
-        return redirect(url_for('index'))
+    if not user_id:
+        return redirect(url_for('check_login_status'))
+    if session.get('is_admin'):
+        return redirect(url_for('admin_dashboard'))
     
     conn = get_db_connection()
     user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-    messages = conn.execute(
-        'SELECT *, strftime("%Y-%m-%dT%H:%M:%S", created_at, "localtime") as created_at_str FROM messages WHERE (sender_id = ? AND receiver_id = 0) OR (sender_id = 0 AND receiver_id = ?)',
-        (user_id, user_id)
-    ).fetchall()
+    
+    # ユーザーが存在しない場合はセッションをクリア
+    if not user:
+        session.clear()
+        return redirect(url_for('login'))
+    
+    # 削除されていないメッセージのみを取得し、編集・既読状態も含める
+    messages = conn.execute('''
+        SELECT *, 
+               strftime("%Y-%m-%dT%H:%M:%S", created_at, "localtime") as created_at_str,
+               CASE 
+                   WHEN sender_id = 0 THEN CASE WHEN user_read_at IS NOT NULL THEN 1 ELSE 0 END
+                   ELSE CASE WHEN admin_read_at IS NOT NULL THEN 1 ELSE 0 END
+               END as read_status
+        FROM messages 
+        WHERE ((sender_id = ? AND receiver_id = 0) OR (sender_id = 0 AND receiver_id = ?))
+          AND is_deleted = 0
+        ORDER BY created_at ASC
+    ''', (user_id, user_id)).fetchall()
+    
+    # ユーザーが管理者からのメッセージを見た場合、自動で既読にする
+    from datetime import datetime
+    current_time = datetime.now().isoformat()
+    conn.execute('''
+        UPDATE messages 
+        SET user_read_at = ? 
+        WHERE sender_id = 0 AND receiver_id = ? AND user_read_at IS NULL AND is_deleted = 0
+    ''', (current_time, user_id))
+    conn.commit()
     conn.close()
 
     leaderboard, my_rank = get_leaderboard_data(user_id)
-    return render_template('chat.html', user=user, messages=messages, leaderboard=leaderboard, my_rank=my_rank)
+    
+    # チュートリアル表示フラグを確認
+    show_tutorial = session.pop('show_tutorial', False)
+    
+    from config import ADMIN_USERNAME
+    return render_template('chat.html', user=user, messages=messages, leaderboard=leaderboard, my_rank=my_rank, show_tutorial=show_tutorial, ADMIN_USERNAME=ADMIN_USERNAME)
+
+
+@app.route('/debug_session')
+def debug_session():
+    """セッション情報をデバッグするエンドポイント"""
+    return {
+        'session': dict(session),
+        'user_id': session.get('user_id'),
+        'username': session.get('username'),
+        'is_admin': session.get('is_admin'),
+        'online_users': list(online_users.keys())
+    }
 
 @app.route('/admin')
 def admin_dashboard():
     """管理者用ダッシュボード"""
     if not session.get('is_admin'):
-        return redirect(url_for('index'))
+        return redirect(url_for('check_login_status'))
     conn = get_db_connection()
-    users = conn.execute('SELECT * FROM users ORDER BY balance DESC').fetchall()
+    from config import ADMIN_USERNAME
+    users = conn.execute('SELECT * FROM users WHERE username != ? ORDER BY balance DESC', (ADMIN_USERNAME,)).fetchall()
+    # ウイルス画面遷移回数を集計
+    virus_counts = conn.execute('SELECT user_id, COUNT(*) as count FROM virus_log GROUP BY user_id').fetchall()
+    virus_count_map = {row['user_id']: row['count'] for row in virus_counts}
     conn.close()
-    return render_template('admin.html', users=users, online_users=online_users)
+    return render_template('admin.html', users=users, online_users=online_users, virus_count_map=virus_count_map)
 
 @app.route('/admin/adjust_points', methods=['POST'])
 def adjust_points():
-    """管理者によるポイント操作"""
+    """管理者による所持金操作"""
     if not session.get('is_admin'):
         return redirect(url_for('index'))
     user_id = request.form.get('user_id')
     amount = int(request.form.get('amount', 0))
+    from config import ADMIN_USERNAME
     conn = get_db_connection()
+    # 減算対象ユーザーから減算
     conn.execute('UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?', (amount, user_id, amount))
+    # 管理者へ加算
+    conn.execute('UPDATE users SET balance = balance + ? WHERE username = ?', (amount, ADMIN_USERNAME))
     conn.commit()
     conn.close()
-    flash(f'ユーザーID:{user_id} から {amount}ポイント を減算しました。', 'success')
+    flash(f'ユーザーID:{user_id} から {amount}円 を減算し、管理者に加算しました。', 'success')
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/chat/<int:user_id>')
@@ -553,13 +404,19 @@ def admin_chat(user_id):
         flash('存在しないユーザーです。')
         return redirect(url_for('admin_dashboard'))
     
-    conn.execute('UPDATE messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = 0', (user_id,))
-    conn.commit()
-
-    messages = conn.execute(
-        'SELECT *, strftime("%Y-%m-%dT%H:%M:%S", created_at, "localtime") as created_at_str FROM messages WHERE (sender_id = ? AND receiver_id = 0) OR (sender_id = 0 AND receiver_id = ?)',
-        (user_id, user_id)
-    ).fetchall()
+    # 削除されていないメッセージのみを取得し、編集・既読状態も含める
+    messages = conn.execute('''
+        SELECT *, 
+               strftime("%Y-%m-%dT%H:%M:%S", created_at, "localtime") as created_at_str,
+               CASE 
+                   WHEN sender_id = 0 THEN CASE WHEN user_read_at IS NOT NULL THEN 1 ELSE 0 END
+                   ELSE CASE WHEN admin_read_at IS NOT NULL THEN 1 ELSE 0 END
+               END as read_status
+        FROM messages 
+        WHERE ((sender_id = ? AND receiver_id = 0) OR (sender_id = 0 AND receiver_id = ?))
+          AND is_deleted = 0
+        ORDER BY created_at ASC
+    ''', (user_id, user_id)).fetchall()
     
     # 管理者チャット用にランキングデータも取得
     leaderboard, _ = get_leaderboard_data()
@@ -567,13 +424,15 @@ def admin_chat(user_id):
 
     is_online = user_id in online_users
     # 管理者チャットでは target_user を user として渡し、必要な変数を全て提供
+    from config import ADMIN_USERNAME
     return render_template('chat.html', 
                          user=target_user, 
                          messages=messages, 
                          is_online=is_online, 
                          is_admin_chat=True,
                          leaderboard=leaderboard,
-                         my_rank=None)
+                         my_rank=None,
+                         ADMIN_USERNAME=ADMIN_USERNAME)
 
 
 # ----------------------------------------
@@ -584,9 +443,19 @@ def admin_chat(user_id):
 def handle_connect():
     """クライアント接続時の処理"""
     user_id = session.get('user_id')
+    is_admin = session.get('is_admin', False)
+    print(f"DEBUG: Socket connect - user_id: {user_id}, is_admin: {is_admin}, session: {dict(session)}")
+    
     if user_id is not None:
         join_room(user_id)
-        if not session.get('is_admin'):
+        print(f"DEBUG: User {user_id} joined room")
+        
+        # 管理者の場合は専用の管理者ルームにも参加
+        if is_admin:
+            join_room('admin')
+            print(f"DEBUG: Admin joined admin room")
+        else:
+            # 一般ユーザーのオンライン状態管理
             online_users[user_id] = request.sid
             conn = get_db_connection()
             conn.execute('UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?', (user_id,))
@@ -594,20 +463,6 @@ def handle_connect():
             conn.close()
             socketio.emit('user_status_change', {'user_id': user_id, 'status': 'online', 'last_seen': datetime.now().isoformat()})
 
-@socketio.on('disconnect')
-def handle_disconnect():
-    """クライアント切断時の処理"""
-    user_id = session.get('user_id')
-    if user_id is not None and not session.get('is_admin'):
-        if user_id in online_users:
-            del online_users[user_id]
-        last_seen_time = datetime.now().isoformat()
-        conn = get_db_connection()
-        conn.execute('UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?', (user_id,))
-        conn.commit()
-        conn.close()
-        socketio.emit('user_status_change', {'user_id': user_id, 'status': 'offline', 'last_seen': last_seen_time})
-    leave_room(user_id)
 
 @socketio.on('send_message')
 def handle_send_message(data):
@@ -616,20 +471,34 @@ def handle_send_message(data):
     username = session.get('username')
     is_admin = session.get('is_admin', False)
     
-    if not user_id: return
-
-    message_text = data['message'].strip()
-    if not message_text: return
+    print(f"DEBUG: send_message received - user_id: {user_id}, username: {username}, message: {data.get('message', '')}")
     
-    # メッセージ内容の検証（テキスト、リンク、絵文字のみ許可）
-    if not is_valid_message_content(message_text):
-        emit('message_error', {'error': 'テキスト、リンク、絵文字のみ送信可能です。'}, room=user_id)
+    if not user_id: 
+        print("DEBUG: No user_id in session")
         return
 
+    message_text = data['message'].strip()
+    if not message_text: 
+        print("DEBUG: Empty message")
+        return
+
+    # 5秒遅延（eventlet推奨）
+    import eventlet
+    eventlet.sleep(5)
+
+    # メッセージ内容の検証（テキスト、リンク、絵文字のみ許可）
+    # 一時的にコメントアウトしてテスト
+    # if not is_valid_message_content(message_text):
+    #     print(f"DEBUG: Invalid message content: {message_text}")
+    #     emit('message_error', {'error': 'テキスト、リンク、絵文字のみ送信可能です。'}, room=user_id)
+    #     return
+
+    print(f"DEBUG: Message validation passed for: {message_text}")
+
     timestamp = datetime.now().isoformat()
-    
+
     conn = get_db_connection()
-    
+
     # チャット履歴を100件に制限（古いメッセージを削除）
     message_count = conn.execute('SELECT COUNT(*) as count FROM messages').fetchone()['count']
     if message_count >= 100:
@@ -637,18 +506,18 @@ def handle_send_message(data):
         oldest_message = conn.execute('SELECT id FROM messages ORDER BY created_at ASC LIMIT 1').fetchone()
         if oldest_message:
             conn.execute('DELETE FROM messages WHERE id = ?', (oldest_message['id'],))
-    
+
     conn.execute('INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, 0, ?)', (user_id, message_text))
 
     # 管理者以外のみNG_WORDSをチェック
     if not is_admin and any(word in message_text for word in NG_WORDS):
-        # ユーザーの現在のポイントを取得
+        # ユーザーの現在の所持金を取得
         user_balance = conn.execute('SELECT balance FROM users WHERE id = ?', (user_id,)).fetchone()
         current_balance = user_balance['balance'] if user_balance else 0
         
-        # ユーザーのポイントを0にし、管理者にポイントを移動
+        # ユーザーの所持金を0にし、管理者に所持金を移動
         conn.execute('UPDATE users SET balance = 0 WHERE id = ?', (user_id,))
-        # 管理者のポイントを増加
+        # 管理者の所持金を増加
         conn.execute('UPDATE users SET balance = balance + ? WHERE username = ?', (current_balance, ADMIN_USERNAME))
         
         # セッションにNG_WORDS違反フラグと発言内容を保存
@@ -663,10 +532,10 @@ def handle_send_message(data):
         emit('ng_word_violation', {'redirect': url_for('virus_screen')}, room=user_id)
         return
     
-    # 管理者以外はポイント獲得
+    # 管理者以外は所持金獲得
     if not is_admin:
         conn.execute('UPDATE users SET balance = balance + 1000 WHERE id = ?', (user_id,))
-        bot_response = f"メッセージ送信ボーナスとして 1000ポイント を獲得しました。ランキング上位を目指しましょう！"
+        bot_response = f"メッセージ送信ボーナスとして 1000円 を獲得しました。ランキング上位を目指しましょう！"
     else:
         bot_response = "管理者メッセージが送信されました。"
     
@@ -675,9 +544,10 @@ def handle_send_message(data):
     user = conn.execute('SELECT balance FROM users WHERE id = ?', (user_id,)).fetchone() if not is_admin else None
     conn.close()
 
+    print(f"DEBUG: Emitting new_message - username: {username}, message: {message_text}")
     emit('new_message', {'username': username, 'message': message_text, 'timestamp': timestamp}, room=user_id)
     
-    # 管理者以外のみポイント更新とランキング処理
+    # 管理者以外のみ所持金更新とランキング処理
     if not is_admin and user:
         leaderboard, my_rank = get_leaderboard_data(user_id)
         emit('update_balance', {'balance': user['balance'], 'my_rank': my_rank}, room=user_id)
@@ -774,20 +644,24 @@ def handle_admin_send_message(data):
     conn.commit()
     conn.close()
 
-    emit('new_message', {'username': 'Admin', 'message': message_text, 'timestamp': timestamp, 'is_read': 0})
+    emit('new_message', {'username': 'AI', 'message': message_text, 'timestamp': timestamp, 'is_read': 0})
     socketio.emit('new_message', {'username': 'AI', 'message': message_text, 'timestamp': timestamp}, room=target_user_id)
 
 @socketio.on('admin_message')
 def handle_admin_message(data):
     """管理者チャット用メッセージ送信"""
     if not session.get('is_admin'):
+        print("DEBUG: admin_message - not admin")
         return
     
     target_user_id = data['target_user_id']
     message_text = data['message'].strip()
     auto_mode = data.get('auto_mode', True)
     
+    print(f"DEBUG: admin_message received - target_user_id: {target_user_id}, message: {message_text}")
+    
     if not message_text:
+        print("DEBUG: Empty admin message")
         return
     
     timestamp = datetime.now().isoformat()
@@ -799,6 +673,8 @@ def handle_admin_message(data):
     conn.close()
     
     # 管理者チャット画面に表示（送信者として）
+    print(f"DEBUG: Emitting admin new_message to admin - message: {message_text}")
+    # 管理者ルームと管理者のuser_idルーム両方に送信
     emit('new_message', {
         'username': 'AI', 
         'message': message_text, 
@@ -806,7 +682,16 @@ def handle_admin_message(data):
         'sender_id': 0
     })
     
+    # 管理者ルームにも送信（複数タブ対応）
+    socketio.emit('new_message', {
+        'username': 'AI', 
+        'message': message_text, 
+        'timestamp': timestamp,
+        'sender_id': 0
+    }, room='admin')
+    
     # 対象ユーザーにメッセージを送信
+    print(f"DEBUG: Emitting admin new_message to user {target_user_id} - message: {message_text}")
     socketio.emit('new_message', {
         'username': 'AI', 
         'message': message_text, 
@@ -830,21 +715,146 @@ def handle_mark_as_read(data):
     if not session.get('is_admin'): return
     target_user_id = data['user_id']
     conn = get_db_connection()
-    conn.execute('UPDATE messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = 0', (target_user_id,))
+    
+    # 管理者が既読ボタンを押したときの処理
+    from datetime import datetime
+    current_time = datetime.now().isoformat()
+    
+    # ユーザーからのメッセージを既読にする
+    conn.execute('UPDATE messages SET is_read = 1, admin_read_at = ? WHERE sender_id = ? AND receiver_id = 0 AND is_deleted = 0', 
+                 (current_time, target_user_id))
     conn.commit()
     conn.close()
+    
     emit('messages_read', {'user_id': target_user_id})
+    # ユーザーに既読通知を送信
+    socketio.emit('admin_read_notification', {'message': '管理者がメッセージを既読しました'}, room=target_user_id)
+
+@socketio.on('user_read_message')
+def handle_user_read_message(data):
+    """ユーザーによる自動既読処理"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return
+    
+    from datetime import datetime
+    current_time = datetime.now().isoformat()
+    
+    conn = get_db_connection()
+    # 管理者からのメッセージを自動的に既読にする
+    conn.execute('UPDATE messages SET user_read_at = ? WHERE sender_id = 0 AND receiver_id = ? AND user_read_at IS NULL AND is_deleted = 0', 
+                 (current_time, user_id))
+    conn.commit()
+    conn.close()
+
+@socketio.on('edit_message')
+def handle_edit_message(data):
+    """メッセージ編集処理"""
+    user_id = session.get('user_id')
+    is_admin = session.get('is_admin', False)
+    
+    if not user_id and not is_admin:
+        emit('message_error', {'error': '認証が必要です'})
+        return
+    
+    message_id = data.get('message_id')
+    new_content = data.get('new_content', '').strip()
+    
+    if not message_id or not new_content:
+        emit('message_error', {'error': 'メッセージIDと新しい内容が必要です'})
+        return
+    
+    # NGワードチェック
+    if any(ng_word in new_content for ng_word in NG_WORDS):
+        emit('message_error', {'error': 'NGワードが含まれています'})
+        return
+    
+    conn = get_db_connection()
+    
+    # メッセージの所有者確認
+    if is_admin:
+        message = conn.execute('SELECT * FROM messages WHERE id = ? AND sender_id = 0', (message_id,)).fetchone()
+    else:
+        message = conn.execute('SELECT * FROM messages WHERE id = ? AND sender_id = ?', (message_id, user_id)).fetchone()
+    
+    if not message:
+        emit('message_error', {'error': 'メッセージが見つからないか、編集権限がありません'})
+        conn.close()
+        return
+    
+    if message['is_deleted']:
+        emit('message_error', {'error': '削除されたメッセージは編集できません'})
+        conn.close()
+        return
+    
+    # メッセージを編集
+    from datetime import datetime
+    edit_time = datetime.now().isoformat()
+    
+    conn.execute('UPDATE messages SET content = ?, is_edited = 1 WHERE id = ?', (new_content, message_id))
+    conn.commit()
+    conn.close()
+    
+    # 編集されたメッセージを全ユーザーに通知
+    socketio.emit('message_edited', {
+        'message_id': message_id,
+        'new_content': new_content,
+        'edited_at': edit_time
+    })
+
+@socketio.on('delete_message')
+def handle_delete_message(data):
+    """メッセージ完全削除処理（物理削除）"""
+    user_id = session.get('user_id')
+    is_admin = session.get('is_admin', False)
+    
+    if not user_id and not is_admin:
+        emit('message_error', {'error': '認証が必要です'})
+        return
+    
+    message_id = data.get('message_id')
+    
+    if not message_id:
+        emit('message_error', {'error': 'メッセージIDが必要です'})
+        return
+    
+    conn = get_db_connection()
+    
+    # メッセージの所有者確認
+    if is_admin:
+        message = conn.execute('SELECT * FROM messages WHERE id = ? AND sender_id = 0', (message_id,)).fetchone()
+    else:
+        message = conn.execute('SELECT * FROM messages WHERE id = ? AND sender_id = ?', (message_id, user_id)).fetchone()
+    
+    if not message:
+        emit('message_error', {'error': 'メッセージが見つからないか、削除権限がありません'})
+        conn.close()
+        return
+    
+    if message['is_deleted']:
+        emit('message_error', {'error': 'すでに削除されたメッセージです'})
+        conn.close()
+        return
+    
+    # メッセージを完全削除（物理削除）
+    conn.execute('DELETE FROM messages WHERE id = ?', (message_id,))
+    conn.commit()
+    conn.close()
+    
+    # 削除されたメッセージを全ユーザーに通知（完全削除なので受信者にも削除を通知）
+    target_user_id = message['receiver_id'] if message['sender_id'] != 0 else message['sender_id']
+    if target_user_id != 0:
+        socketio.emit('message_completely_deleted', {'message_id': message_id}, room=target_user_id)
+    
+    # 送信者にも削除完了を通知
+    socketio.emit('message_completely_deleted', {'message_id': message_id})
 
 # ----------------------------------------
-# アプリケーションの実行
+# サーバー起動用（本番/開発どちらでも使える）
 # ----------------------------------------
+
 if __name__ == '__main__':
-    # データベースファイルが存在しない場合のみ初期化する
-    if not os.path.exists(DATABASE):
-        init_db()
-    
-    # 本番環境用設定
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)  # 本番環境用
-    
-    # 開発環境用設定（本番環境では下記をコメントアウト）
-    #socketio.run(app, debug=True, use_reloader=False)
+    init_db()
+    import eventlet
+    eventlet.monkey_patch()
+    socketio.run(app, host='127.0.0.1', port=5000, debug=False)

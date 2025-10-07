@@ -1,0 +1,684 @@
+{% extends "base.html" %}
+{% block title %}TMHKchat - Channel{% endblock %}
+{% block head_style %}
+<style>
+    /* 全体を囲むコンテナ */
+    .main-container {
+        display: flex;
+        flex-direction: column; /* スマホでは縦並びが基本 */
+        width: 95%;
+        max-width: 1200px;
+        height: 90vh;
+        gap: 20px;
+        opacity: 1; /* 即座に表示 */
+        transform: scale(1); /* 即座に正常サイズ */
+    }
+    
+    /* PC表示 (幅1024px以上) */
+    @media (min-width: 1024px) {
+        .main-container {
+            flex-direction: row; /* PCでは横並び */
+        }
+    }
+
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1; /* 残りのスペースをすべて使用 */
+        height: 100%;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    }
+
+    .chat-header {
+        text-align: center;
+        margin-bottom: 20px;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        padding-bottom: 15px;
+    }
+
+    .chat-header h2 {
+        color: #ffffff;
+        font-size: 1.8em;
+        margin: 0;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-left: 10px;
+        animation: pulse 2s infinite;
+    }
+
+    .status-online {
+        background-color: #4CAF50;
+    }
+
+    .status-offline {
+        background-color: #f44336;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .chat-messages {
+        flex-grow: 1;
+        overflow-y: auto;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
+        max-height: 400px;
+    }
+
+    .message-item {
+        margin-bottom: 15px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        word-wrap: break-word;
+        animation: fadeInMessage 0.3s ease-in;
+    }
+
+    .message-item.user-message {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        margin-left: 20%;
+        text-align: right;
+    }
+
+    .message-item.ai-message {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        margin-right: 20%;
+    }
+
+    @keyframes fadeInMessage {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .chat-input {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .chat-input input {
+        flex-grow: 1;
+        padding: 15px 20px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 25px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        color: #ffffff;
+        font-size: 16px;
+        outline: none;
+        transition: all 0.3s ease;
+    }
+
+    .chat-input input::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+    }
+
+    .chat-input input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .chat-input button {
+        padding: 15px 30px;
+        border: none;
+        border-radius: 25px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .chat-input button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .chat-input button:active {
+        transform: translateY(0);
+    }
+
+    /* 右側のランキング・操作パネル */
+    .sidebar {
+        width: 100%;
+        max-width: 350px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* PC表示時のサイドバー調整 */
+    @media (min-width: 1024px) {
+        .sidebar {
+            width: 350px;
+            min-width: 350px;
+        }
+    }
+
+    .panel {
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    }
+
+    .panel h3 {
+        color: #ffffff;
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 1.3em;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    /* ランキング表示 */
+    .leaderboard-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .leaderboard-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        border-left: 4px solid #667eea;
+        transition: all 0.3s ease;
+    }
+
+    .leaderboard-item:hover {
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateX(5px);
+    }
+
+    .leaderboard-item.my-rank {
+        border-left-color: #ffeb3b;
+        background: rgba(255, 235, 59, 0.1);
+    }
+
+    .leaderboard-username {
+        font-weight: bold;
+        color: #ffffff;
+    }
+
+    .leaderboard-balance {
+        color: #4CAF50;
+        font-weight: bold;
+    }
+
+    /* 自分のステータス表示 */
+    .user-status {
+        text-align: center;
+        color: #ffffff;
+    }
+
+    .user-balance {
+        font-size: 2em;
+        font-weight: bold;
+        color: #4CAF50;
+        text-shadow: 0 2px 10px rgba(76, 175, 80, 0.5);
+    }
+
+    .user-rank {
+        font-size: 1.2em;
+        margin-top: 10px;
+    }
+
+    /* アニメーション */
+    @keyframes slideInFromRight {
+        from { opacity: 0; transform: translateX(50px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes slideInFromLeft {
+        from { opacity: 0; transform: translateX(-50px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    .main-container {
+        animation: slideInFromLeft 0.6s ease-out forwards;
+    }
+
+    .sidebar {
+        animation: slideInFromRight 0.6s ease-out forwards;
+    }
+
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+        .main-container {
+            flex-direction: column;
+            width: 95%;
+            height: 95vh;
+            gap: 15px;
+        }
+        
+        .chat-container {
+            min-height: 60vh;
+        }
+        
+        .sidebar {
+            width: 100%;
+            max-width: none;
+        }
+        
+        .panel {
+            padding: 20px;
+        }
+        
+        .chat-input input {
+            font-size: 16px; /* iOS Safari zoom prevention */
+        }
+    }
+
+    /* 管理者チャット専用スタイル */
+    .admin-controls {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .mode-toggle {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .mode-button {
+        padding: 10px 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .mode-button.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+    }
+
+    .mode-button:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .auto-mode-indicator {
+        font-size: 0.9em;
+        color: #4CAF50;
+        font-weight: bold;
+    }
+
+    /* ローディング画面 */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(10px);
+    }
+
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block body_content %}
+<div class="main-container">
+    <!-- チャット部分 -->
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>
+                {% if is_admin_chat %}
+                    AIチャット - {{ target_user.username }}
+                    <span class="status-indicator {{ 'status-online' if is_online else 'status-offline' }}"></span>
+                {% else %}
+                    AIチャット
+                {% endif %}
+            </h2>
+            
+            {% if is_admin_chat %}
+            <div class="admin-controls">
+                <div class="mode-toggle">
+                    <button class="mode-button" id="auto-mode-btn" onclick="setAdminMode(true)">自動応答</button>
+                    <button class="mode-button" id="manual-mode-btn" onclick="setAdminMode(false)">手動応答</button>
+                </div>
+                <div class="auto-mode-indicator" id="mode-indicator">
+                    🤖 自動応答モード - システムが自動で返信します
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="chat-messages" id="chat-messages">
+            {% for message in messages %}
+            <div class="message-item {{ 'user-message' if message.sender_id != 0 else 'ai-message' }}">
+                <strong>
+                    {% if message.sender_id == 0 %}
+                        AI
+                    {% elif is_admin_chat %}
+                        {{ target_user.username }}
+                    {% else %}
+                        {{ user.username }}
+                    {% endif %}
+                :</strong>
+                {{ message.content }}
+                <br><small style="opacity: 0.7;">({{ message.created_at_str }})</small>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="chat-input">
+            <input type="text" id="message-input" placeholder="メッセージを入力..." maxlength="500" />
+            <button onclick="sendMessage()">送信</button>
+        </div>
+    </div>
+    
+    <!-- サイドバー (ランキングなど) -->
+    <div class="sidebar">
+        {% if not is_admin_chat %}
+        <!-- ユーザーのステータス表示 -->
+        <div class="panel">
+            <h3>あなたのステータス</h3>
+            <div class="user-status">
+                <div class="user-balance" id="user-balance">{{ user.balance }}</div>
+                <div>ポイント</div>
+                {% if my_rank %}
+                <div class="user-rank">ランキング {{ my_rank }}位</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- ランキング表示 -->
+        <div class="panel">
+            <h3>🏆 ランキング TOP5</h3>
+            <ul class="leaderboard-list" id="leaderboard">
+                {% for rank, leader in leaderboard %}
+                <li class="leaderboard-item {% if not is_admin_chat and leader.username == user.username %}my-rank{% endif %}">
+                    <span class="leaderboard-username">{{ loop.index }}位: {{ leader.username }}</span>
+                    <span class="leaderboard-balance">{{ leader.balance }}pt</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        {% if is_admin_chat %}
+        <!-- 管理者用操作パネル -->
+        <div class="panel">
+            <h3>管理者操作</h3>
+            <div style="text-align: center;">
+                <button onclick="markAsRead()" style="
+                    padding: 10px 20px;
+                    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 15px;
+                    cursor: pointer;
+                    margin-bottom: 10px;
+                    width: 100%;
+                ">既読にする</button>
+                
+                <button onclick="window.location.href='/admin'" style="
+                    padding: 10px 20px;
+                    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 15px;
+                    cursor: pointer;
+                    width: 100%;
+                ">ダッシュボードに戻る</button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ローディングオーバーレイ -->
+<div class="loading-overlay hidden" id="loading-overlay">
+    <div class="loading-spinner"></div>
+</div>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<script>
+    // グローバル変数
+    const socket = io();
+    const messageInput = document.getElementById('message-input');
+    const chatMessages = document.getElementById('chat-messages');
+    const userBalanceElement = document.getElementById('user-balance');
+    const leaderboardElement = document.getElementById('leaderboard');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    
+    // 管理者チャット用変数
+    const isAdminChat = {{ 'true' if is_admin_chat else 'false' }};
+    {% if is_admin_chat %}
+    const targetUserId = {{ target_user.id }};
+    let adminAutoMode = true;
+    {% endif %}
+    
+    // メッセージ送信関数
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message) {
+            showLoading();
+            
+            if (isAdminChat) {
+                // 管理者チャット専用の送信処理
+                socket.emit('admin_message', {
+                    message: message,
+                    target_user_id: targetUserId,
+                    auto_mode: adminAutoMode
+                });
+            } else {
+                // 通常のチャット送信
+                socket.emit('send_message', { message: message });
+            }
+            
+            messageInput.value = '';
+            hideLoading();
+        }
+    }
+    
+    // Enterキーでメッセージ送信
+    messageInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // 管理者モード切り替え
+    {% if is_admin_chat %}
+    function setAdminMode(isAuto) {
+        adminAutoMode = isAuto;
+        socket.emit('admin_mode_change', { auto_mode: isAuto });
+        
+        // ボタンの状態を更新
+        document.getElementById('auto-mode-btn').classList.toggle('active', isAuto);
+        document.getElementById('manual-mode-btn').classList.toggle('active', !isAuto);
+        
+        // インジケーターの更新
+        const indicator = document.getElementById('mode-indicator');
+        if (isAuto) {
+            indicator.textContent = '🤖 自動応答モード - システムが自動で返信します';
+            indicator.style.color = '#4CAF50';
+        } else {
+            indicator.textContent = '👤 手動応答モード - 手動で返信してください';
+            indicator.style.color = '#FF9800';
+        }
+    }
+    
+    function markAsRead() {
+        socket.emit('mark_as_read', { user_id: targetUserId });
+    }
+    
+    // 初期モード設定
+    setAdminMode(true);
+    {% endif %}
+    
+    // Socket.IO イベントリスナー
+    socket.on('new_message', function(data) {
+        addMessage(data.username, data.message, data.timestamp, data.sender_id === 0);
+    });
+    
+    {% if not is_admin_chat %}
+    socket.on('update_balance', function(data) {
+        if (userBalanceElement) {
+            userBalanceElement.textContent = data.balance;
+        }
+        
+        // ランキング更新
+        if (data.my_rank) {
+            const rankElements = document.querySelectorAll('.user-rank');
+            rankElements.forEach(el => {
+                el.textContent = `ランキング ${data.my_rank}位`;
+            });
+        }
+    });
+    {% endif %}
+    
+    socket.on('update_leaderboard', function(data) {
+        updateLeaderboard(data.leaderboard);
+    });
+    
+    socket.on('ng_word_violation', function(data) {
+        window.location.href = data.redirect;
+    });
+    
+    socket.on('message_error', function(data) {
+        alert('エラー: ' + data.error);
+    });
+    
+    // ヘルパー関数
+    function addMessage(username, message, timestamp, isAI = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message-item ' + (isAI ? 'ai-message' : 'user-message');
+        
+        const time = new Date(timestamp).toLocaleTimeString('ja-JP', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        messageDiv.innerHTML = `
+            <strong>${username}:</strong> ${escapeHtml(message)}
+            <br><small style="opacity: 0.7;">(${time})</small>
+        `;
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    function updateLeaderboard(leaderboard) {
+        if (!leaderboardElement) return;
+        
+        leaderboardElement.innerHTML = '';
+        leaderboard.forEach((leader, index) => {
+            const li = document.createElement('li');
+            li.className = 'leaderboard-item';
+            {% if not is_admin_chat %}
+            if (leader.username === '{{ user.username }}') {
+                li.classList.add('my-rank');
+            }
+            {% endif %}
+            
+            li.innerHTML = `
+                <span class="leaderboard-username">${index + 1}位: ${escapeHtml(leader.username)}</span>
+                <span class="leaderboard-balance">${leader.balance}pt</span>
+            `;
+            leaderboardElement.appendChild(li);
+        });
+    }
+    
+    function showLoading() {
+        if (loadingOverlay) {
+            loadingOverlay.classList.remove('hidden');
+        }
+    }
+    
+    function hideLoading() {
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('hidden');
+        }
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // 初期化
+    document.addEventListener('DOMContentLoaded', function() {
+        // コンテナが確実に表示されるようにする
+        const mainContainer = document.querySelector('.main-container');
+        if (mainContainer) {
+            mainContainer.style.opacity = '1';
+            mainContainer.style.transform = 'scale(1)';
+            mainContainer.style.display = 'flex';
+        }
+        
+        // メッセージを最下部にスクロール
+        if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // フォーカス設定
+        if (messageInput) {
+            messageInput.focus();
+        }
+        
+        console.log('Chat page initialized'); // デバッグ用
+    });
+    
+    // ページ離脱時の処理
+    window.addEventListener('beforeunload', function() {
+        socket.disconnect();
+    });
+</script>
+{% endblock %}

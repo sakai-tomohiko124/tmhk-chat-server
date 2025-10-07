@@ -36,6 +36,18 @@
     <h1>TMHKchat(仮)</h1>
     <p>ニューラルネットワーク開始中...</p>
 </div>
+<script>
+    // 2秒後にnextパラメータがあれば遷移、なければログイン画面へ
+    setTimeout(function() {
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get('next');
+        if (next) {
+            window.location.href = next;
+        } else {
+            window.location.href = '/login';
+        }
+    }, 2000);
+</script>
 {% endblock %}
 
 {% block body_script %}

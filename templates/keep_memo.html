@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}管理者Keepメモ{% endblock %}
+{% block content %}
+<style>
+    .colorful-textarea {
+        width: 100%;
+        height: 300px;
+        resize: vertical;
+        background: linear-gradient(135deg, #f3ec78 0%, #af4261 100%);
+        border: 2px solid;
+        border-image: linear-gradient(90deg, #ff6a00, #ee0979, #43cea2, #185a9d) 1;
+        color: #222;
+        font-size: 1.1rem;
+        padding: 1em;
+        border-radius: 15px;
+        box-shadow: 0 0 10px rgba(255, 106, 0, 0.15);
+        transition: box-shadow 0.3s, border-color 0.3s;
+    }
+    .colorful-textarea:focus {
+        outline: none;
+        box-shadow: 0 0 20px #ee0979, 0 0 10px #43cea2;
+        border-color: #ee0979;
+        background: linear-gradient(135deg, #43cea2 0%, #ee0979 100%);
+        color: #fff;
+    }
+    .copy-btn {
+        background: linear-gradient(90deg, #ff6a00, #ee0979);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5em 1.2em;
+        font-size: 1rem;
+        cursor: pointer;
+        margin-left: 1em;
+        transition: background 0.2s;
+    }
+    .copy-btn:hover {
+        background: linear-gradient(90deg, #43cea2, #185a9d);
+    }
+    .copy-success {
+        color: #43cea2;
+        margin-left: 1em;
+        font-weight: bold;
+        font-size: 0.95em;
+    }
+    .save-btn {
+        background: linear-gradient(90deg, #43cea2, #185a9d);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5em 1.5em;
+        font-size: 1.1rem;
+        cursor: pointer;
+        margin-top: 1em;
+        transition: background 0.2s;
+    }
+    .save-btn:hover {
+        background: linear-gradient(90deg, #ff6a00, #ee0979);
+    }
+    .save-success {
+        color: #43cea2;
+        font-weight: bold;
+        font-size: 1em;
+        margin-bottom: 1em;
+        display: block;
+    }
+</style>
+<script>
+function copyInviteLink() {
+    const link = document.getElementById('invite-link').textContent;
+    navigator.clipboard.writeText(link).then(function() {
+        document.getElementById('copy-success').textContent = 'コピーしました！';
+        setTimeout(() => {
+            document.getElementById('copy-success').textContent = '';
+        }, 2000);
+    }, function() {
+        document.getElementById('copy-success').textContent = 'コピー失敗';
+    });
+}
+</script>
+<div class="admin-container">
+    <h1>管理者Keepメモ</h1>
+    <p>ユーザーが1人も登録されていません。<br>ここに管理者用のメモを記入できます。</p>
+    {% if saved %}
+    <span class="save-success">保存しました！</span>
+    {% endif %}
+    <form method="POST">
+        <textarea class="colorful-textarea" name="memo" placeholder="ここにメモを記入...">{{ memo_content|default('') }}</textarea>
+        <br>
+        <button type="submit" class="save-btn">保存</button>
+    </form>
+    <hr>
+    <h2>友達招待リンク</h2>
+    {% if invite_url %}
+    <div style="margin-bottom:1em;">
+        <strong>招待リンク:</strong> <span id="invite-link">{{ invite_url }}</span>
+        <button class="copy-btn" onclick="copyInviteLink()">リンク取得</button>
+        <span id="copy-success" class="copy-success"></span><br>
+        <span style="color:gray;">有効期限: {{ expires_at }}（124時間）</span>
+    </div>
+    {% else %}
+    <div>招待リンクの生成に失敗しました。</div>
+    {% endif %}
+</div>
+{% endblock %}

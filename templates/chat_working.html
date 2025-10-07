@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TMHKchat - Channel</title>
+    <style>
+        body {
+            background-color: #0a0a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .chat-container {
+            flex: 1;
+            min-width: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .chat-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+        }
+        
+        .chat-header h2 {
+            margin: 0;
+            color: #ffffff;
+        }
+        
+        .admin-controls {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .mode-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .mode-button {
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .mode-button.active {
+            background: #667eea;
+            border-color: #667eea;
+        }
+        
+        .auto-mode-indicator {
+            font-size: 0.9em;
+            color: #4CAF50;
+        }
+        
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .message-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            word-wrap: break-word;
+        }
+        
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .chat-input input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .chat-input button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .sidebar {
+            width: 300px;
+            min-width: 250px;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .panel h3 {
+            margin-top: 0;
+            color: white;
+            text-align: center;
+        }
+        
+        .user-status {
+            text-align: center;
+            color: white;
+        }
+        
+        .user-balance {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        
+        .admin-panel button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .admin-panel .read-btn {
+            background: #4CAF50;
+        }
+        
+        .admin-panel .dashboard-btn {
+            background: #2196F3;
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>
+                    {% if is_admin_chat %}
+                        AIチャット - {{ user.username if user else 'ユーザー' }}
+                    {% else %}
+                        AIチャット
+                    {% endif %}
+                </h2>
+                
+                {% if is_admin_chat %}
+                <div class="admin-controls">
+                    <div class="mode-toggle">
+                        <button class="mode-button active" id="auto-mode-btn" onclick="setAdminMode(true)">自動応答</button>
+                        <button class="mode-button" id="manual-mode-btn" onclick="setAdminMode(false)">手動応答</button>
+                    </div>
+                    <div class="auto-mode-indicator" id="mode-indicator">
+                        🤖 自動応答モード - システムが自動で返信します
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="chat-messages" id="chat-messages">
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="message-item">
+                        <strong>
+                            {% if message.sender_id == 0 %}
+                                AI
+                            {% else %}
+                                {{ user.username if user else 'ユーザー' }}
+                            {% endif %}
+                        :</strong>
+                        {{ message.content }}
+                        <br><small style="opacity: 0.7;">({{ message.created_at_str }})</small>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="message-item">
+                        <strong>システム:</strong> チャット画面が表示されています。メッセージを送信してください。
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="chat-input">
+                <input type="text" id="message-input" placeholder="メッセージを入力..." maxlength="500" />
+                <button onclick="sendMessage()">送信</button>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            {% if not is_admin_chat and user %}
+            <div class="panel">
+                <h3>あなたのステータス</h3>
+                <div class="user-status">
+                    <div class="user-balance" id="user-balance">{{ user.balance }}</div>
+                    <div>円</div>
+                    {% if my_rank %}
+                    <div>ランキング {{ my_rank }}位</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="panel">
+                <h3>🏆 ランキング TOP5</h3>
+                <div id="leaderboard">
+                    {% if leaderboard %}
+                        {% for leader in leaderboard %}
+                        <div class="leaderboard-item">
+                            <span>{{ loop.index }}位: {{ leader.username }}</span>
+                            <span style="color: #4CAF50;">{{ leader.balance }}円</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="leaderboard-item">
+                            <span>ランキングデータなし</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if is_admin_chat %}
+            <div class="panel admin-panel">
+                <h3>管理者操作</h3>
+                <button class="read-btn" onclick="markAsRead()">既読にする</button>
+                <button class="dashboard-btn" onclick="window.location.href='/admin'">ダッシュボードに戻る</button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        // 変数の定義
+        const socket = io();
+        const messageInput = document.getElementById('message-input');
+        const chatMessages = document.getElementById('chat-messages');
+        const userBalanceElement = document.getElementById('user-balance');
+        const leaderboardElement = document.getElementById('leaderboard');
+        
+        // 管理者チャットかどうか
+        const isAdminChat = {{ 'true' if is_admin_chat else 'false' }};
+        
+        {% if is_admin_chat and user %}
+        const targetUserId = {{ user.id }};
+        {% endif %}
+        
+        let adminAutoMode = true;
+        
+        console.log('Chat page loaded, isAdminChat:', isAdminChat);
+        
+        // メッセージ送信関数
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message) {
+                console.log('Sending message:', message);
+                
+                if (isAdminChat) {
+                    socket.emit('admin_message', {
+                        message: message,
+                        target_user_id: targetUserId,
+                        auto_mode: adminAutoMode
+                    });
+                } else {
+                    socket.emit('send_message', { message: message });
+                }
+                
+                messageInput.value = '';
+            }
+        }
+        
+        // Enterキーでメッセージ送信
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // 管理者モード切り替え（管理者チャットの場合のみ）
+        {% if is_admin_chat %}
+        function setAdminMode(isAuto) {
+            adminAutoMode = isAuto;
+            socket.emit('admin_mode_change', { auto_mode: isAuto });
+            
+            document.getElementById('auto-mode-btn').classList.toggle('active', isAuto);
+            document.getElementById('manual-mode-btn').classList.toggle('active', !isAuto);
+            
+            const indicator = document.getElementById('mode-indicator');
+            if (isAuto) {
+                indicator.textContent = '🤖 自動応答モード - システムが自動で返信します';
+                indicator.style.color = '#4CAF50';
+            } else {
+                indicator.textContent = '👤 手動応答モード - 手動で返信してください';
+                indicator.style.color = '#FF9800';
+            }
+        }
+        
+        function markAsRead() {
+            socket.emit('mark_as_read', { user_id: targetUserId });
+        }
+        {% endif %}
+        
+        // Socket.IO イベントリスナー
+        socket.on('connect', function() {
+            console.log('Socket connected');
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Socket disconnected');
+        });
+        
+        socket.on('new_message', function(data) {
+            console.log('New message received:', data);
+            addMessage(data.username, data.message, data.timestamp, data.sender_id === 0);
+        });
+        
+        {% if not is_admin_chat %}
+        socket.on('update_balance', function(data) {
+            if (userBalanceElement) {
+                userBalanceElement.textContent = data.balance;
+            }
+        });
+        {% endif %}
+        
+        socket.on('update_leaderboard', function(data) {
+            updateLeaderboard(data.leaderboard);
+        });
+        
+        socket.on('ng_word_violation', function(data) {
+            window.location.href = data.redirect;
+        });
+        
+        socket.on('message_error', function(data) {
+            alert('エラー: ' + data.error);
+        });
+        
+        // ヘルパー関数
+        function addMessage(username, message, timestamp, isAI = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message-item';
+            
+            const time = new Date(timestamp).toLocaleTimeString('ja-JP', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            messageDiv.innerHTML = `
+                <strong>${escapeHtml(username)}:</strong> ${escapeHtml(message)}
+                <br><small style="opacity: 0.7;">(${time})</small>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function updateLeaderboard(leaderboard) {
+            if (!leaderboardElement) return;
+            
+            leaderboardElement.innerHTML = '';
+            leaderboard.forEach((leader, index) => {
+                const div = document.createElement('div');
+                div.className = 'leaderboard-item';
+                div.innerHTML = `
+                    <span>${index + 1}位: ${escapeHtml(leader.username)}</span>
+                    <span style="color: #4CAF50;">${leader.balance}円</span>
+                `;
+                leaderboardElement.appendChild(div);
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            
+            // フォーカス設定
+            if (messageInput) {
+                messageInput.focus();
+            }
+            
+            // メッセージを最下部にスクロール
+            if (chatMessages) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+    </script>
+</body>
+</html>

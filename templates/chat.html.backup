@@ -1,0 +1,758 @@
+{% extends "base.html" %}
+{% block title %}TMHKchat - Channel{% endblock %}
+{% block head_style %}
+<style>
+    /* 全体を囲むコンテナ */
+    .main-container {
+        display: flex;
+        flex-direction: column; /* スマホでは縦並びが基本 */
+        width: 95%;
+        max-width: 1200px;
+        height: 90vh;
+        gap: 20px;
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    /* PC表示 (幅1024px以上) */
+    @media (min-width: 1024px) {
+        .main-container {
+            flex-direction: row; /* PCでは横並び */
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body_content %}
+<div class="main-container">
+    <div class="chat-section">
+        <div class="chat-header">
+            <h2>{% if is_admin_chat %}AIチャット - {{ target_user.username }}{% else %}AIチャット{% endif %}</h2>
+        </div>
+        
+        <div class="chat-messages" id="chat-messages">
+            {% for message in messages %}
+            <div class="message-item">
+                <strong>{{ message.sender_username or 'AI' }}:</strong> {{ message.content }}
+                <small>({{ message.created_at_str }})</small>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="chat-input">
+            <input type="text" id="message-input" placeholder="メッセージを入力..." />
+            <button onclick="sendMessage()">送信</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message) {
+            if (isAdminChat) {
+                // 管理者チャット専用の送信処理
+                socket.emit('admin_message', {
+                    message: message,
+                    target_user_id: targetUserId,
+                    auto_mode: adminAutoMode
+                });
+            } else {
+                // 通常のチャット送信
+                socket.emit('send_message', { message: message });
+            }
+            messageInput.value = '';
+        }
+    }
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+    // 管理者専用：モード切り替え機能
+    if (isAdminChat && modeToggle) {
+        modeToggle.addEventListener('click', () => {
+            adminAutoMode = !adminAutoMode;
+            if (adminAutoMode) {
+                modeToggle.textContent = '自動応答モード';
+                modeToggle.className = 'mode-toggle auto';
+            } else {
+                modeToggle.textContent = '手動応答モード';
+                modeToggle.className = 'mode-toggle manual';
+            }
+            // サーバーにモード変更を通知
+            socket.emit('admin_mode_change', { auto_mode: adminAutoMode });
+        });
+    }h2>
+            <a href="https://www.alphapolis.co.jp/novel/31484585/380882757" target="_blank" class="novel-icon">
+                📜
+            </a>
+        </div>*/
+    @media (min-width: 1024px) {
+        .main-container {
+            flex-direction: row;
+        }
+    }
+
+    /* 左側: チャットコンテナ */
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1; /* 残りのスペースをすべて使用 */
+        background: rgba(20, 20, 40, 0.5);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        overflow: hidden; /* 子要素がはみ出ないように */
+    }
+    .chat-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        flex-shrink: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+    }
+
+    /* 小説アイコンのスタイル */
+    .novel-icon {
+        background: rgba(159, 120, 255, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(159, 120, 255, 0.3);
+        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: var(--primary-color);
+        text-decoration: none;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(159, 120, 255, 0.2);
+    }
+
+    .novel-icon:hover {
+        background: rgba(159, 120, 255, 0.3);
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(159, 120, 255, 0.3);
+        color: var(--secondary-color);
+    }
+
+    .novel-icon:active {
+        transform: scale(0.95);
+    }
+
+    /* ツールチップ */
+    .novel-icon::after {
+        content: "小説を読む";
+        position: absolute;
+        bottom: -35px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        z-index: 1000;
+    }
+
+    .novel-icon:hover::after {
+        opacity: 1;
+    }
+
+    /* 情報ウィジェットエリアのスタイル */
+    .info-widgets {
+        position: fixed;
+        right: 20px;
+        top: 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        z-index: 100;
+    }
+
+    .widget-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 15px;
+        padding: 15px;
+        width: 280px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .widget-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .widget-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .widget-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--secondary-color);
+    }
+
+    .widget-icon {
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+    .widget-icon:hover {
+        transform: scale(1.1);
+    }
+
+    .weather-info {
+        font-size: 0.8rem;
+        line-height: 1.4;
+    }
+
+    .train-delay-list {
+        max-height: 120px;
+        overflow-y: auto;
+        font-size: 0.8rem;
+    }
+
+    .delay-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        padding: 3px 0;
+    }
+
+    .delay-status {
+        font-weight: 500;
+    }
+
+    .delay-status.normal {
+        color: #4CAF50;
+    }
+
+    .delay-status.delayed {
+        color: #FF9800;
+    }
+
+    /* 外部サービスアイコンエリア */
+    .external-services {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        display: grid;
+        grid-template-columns: repeat(3, 45px);
+        gap: 10px;
+        z-index: 100;
+    }
+
+    .service-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        text-decoration: none;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .service-icon:hover {
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .service-icon.youtube {
+        background: linear-gradient(45deg, #FF0000, #CC0000);
+    }
+
+    .service-icon.gmail {
+        background: linear-gradient(45deg, #EA4335, #DB4437);
+    }
+
+    .service-icon.instagram {
+        background: linear-gradient(45deg, #E4405F, #5851DB, #FCCC63);
+    }
+
+    .service-icon.line {
+        background: linear-gradient(45deg, #00B900, #00AA00);
+    }
+
+    .service-icon.tiktok {
+        background: linear-gradient(45deg, #000000, #FF0050);
+    }
+
+    .service-icon.twitter {
+        background: linear-gradient(45deg, #1DA1F2, #0E7BC4);
+    }
+
+    /* 管理者専用の応答モード切り替えボタン */
+    .admin-controls {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 10px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        display: none; /* デフォルトは非表示 */
+    }
+
+    .admin-controls.show {
+        display: block;
+    }
+
+    .mode-toggle {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+    }
+
+    .mode-toggle:hover {
+        background: var(--secondary-color);
+        transform: scale(1.05);
+    }
+
+    .mode-toggle.manual {
+        background: #FF6B6B;
+    }
+
+    .mode-toggle.auto {
+        background: #4ECDC4;
+    }
+
+    .chat-box {
+        flex-grow: 1;
+        padding: 1.5rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column-reverse; /* 新しいメッセージが下に追加されるように見せるためのトリック */
+    }
+    .message {
+        max-width: 70%;
+        margin-bottom: 1rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 15px;
+        line-height: 1.5;
+        word-wrap: break-word; /* 長い単語を折り返す */
+    }
+    .message.sent {
+        background-color: var(--primary-color);
+        color: #fff;
+        align-self: flex-end;
+        border-bottom-right-radius: 5px;
+    }
+    .message.received {
+        background: rgba(255, 255, 255, 0.1);
+        align-self: flex-start;
+        border-bottom-left-radius: 5px;
+    }
+    .message-user {
+        font-weight: 500;
+        margin-bottom: 0.3rem;
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    .timestamp {
+        display: block;
+        font-size: 0.8rem;
+        text-align: right;
+        opacity: 0.7;
+        margin-top: 5px;
+    }
+    .chat-input {
+        display: flex;
+        padding: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        flex-shrink: 0;
+    }
+    #message-input {
+        flex-grow: 1;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        color: #fff;
+        padding: 0.8rem;
+        font-size: 1.1rem;
+        font-family: var(--font-family);
+    }
+    #send-btn {
+        background-image: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        border: none;
+        color: #fff;
+        border-radius: 10px;
+        padding: 0.8rem 1.5rem;
+        margin-left: 1rem;
+        cursor: pointer;
+    }
+
+    /* 右側: サイドコンテナ */
+    .side-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+    }
+    @media (min-width: 1024px) {
+        .side-container {
+            width: 350px;
+            flex-shrink: 0; /* PC表示では幅を固定 */
+        }
+    }
+    .status-box, .leaderboard-box {
+        background: rgba(20, 20, 40, 0.5);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        padding: 1.5rem;
+    }
+    h2 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: var(--secondary-color);
+    }
+    #balance-display {
+        font-size: 2rem;
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+    #my-rank-display {
+        font-size: 1.2rem;
+    }
+    #invite-link-btn {
+        width: 100%;
+        margin-top: 1rem;
+        background: transparent;
+        border: 1px solid var(--secondary-color);
+        color: var(--secondary-color);
+        padding: 0.8rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    #invite-link-btn:hover {
+        background: var(--secondary-color);
+        color: var(--bg-color);
+    }
+    #leaderboard-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    #leaderboard-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    #leaderboard-list li:last-child {
+        border-bottom: none;
+    }
+    .rank {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--primary-color);
+        margin-right: 1rem;
+    }
+    .username {
+        font-size: 1.1rem;
+    }
+    .points {
+        font-size: 1rem;
+        opacity: 0.8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 管理者専用コントロール -->
+{% if is_admin_chat %}
+<div class="admin-controls show">
+    <button id="mode-toggle" class="mode-toggle auto">自動応答モード</button>
+</div>
+{% endif %}
+
+<!-- 情報ウィジェットエリア -->
+<div class="info-widgets">
+    <!-- 天気予報ウィジェット -->
+    <div class="widget-card">
+        <div class="widget-header">
+            <span class="widget-title">天気予報</span>
+            <a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=130000" target="_blank">
+                <div class="widget-icon">🌤️</div>
+            </a>
+        </div>
+        <div class="weather-info" id="weather-info">
+            読み込み中...
+        </div>
+    </div>
+
+    <!-- 電車遅延情報ウィジェット -->
+    <div class="widget-card">
+        <div class="widget-header">
+            <span class="widget-title">電車遅延情報</span>
+            <a href="https://transit.yahoo.co.jp/diainfo/area/4" target="_blank">
+                <div class="widget-icon">🚆</div>
+            </a>
+        </div>
+        <div class="train-delay-list" id="train-delay-info">
+            読み込み中...
+        </div>
+    </div>
+</div>
+
+<!-- 外部サービスアイコン -->
+<div class="external-services">
+    <a href="https://www.youtube.com" target="_blank" class="service-icon youtube" title="YouTube">
+        ▶️
+    </a>
+    <a href="https://mail.google.com" target="_blank" class="service-icon gmail" title="Gmail">
+        ✉️
+    </a>
+    <a href="https://www.instagram.com" target="_blank" class="service-icon instagram" title="Instagram">
+        📷
+    </a>
+    <a href="https://line.me" target="_blank" class="service-icon line" title="LINE">
+        💬
+    </a>
+    <a href="https://www.tiktok.com" target="_blank" class="service-icon tiktok" title="TikTok">
+        🎵
+    </a>
+    <a href="https://twitter.com" target="_blank" class="service-icon twitter" title="Twitter">
+        🐦
+    </a>
+</div>
+
+<div class="main-container">
+    <!-- チャットエリア -->
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>System Channel</h2>
+            <a href="https://www.alphapolis.co.jp/novel/31484585/380882757" target="_blank" class="novel-icon">
+                📖
+            </a>
+        </div>
+        <div class="chat-box" id="chat-box">
+            <!-- 過去のメッセージを逆順で表示 -->
+            {% for msg in messages|reverse %}
+                <div class="message {% if msg.sender_id == user.id %}sent{% else %}received{% endif %}">
+                    <div class="message-user">{% if msg.sender_id == user.id %}{{ user.username }}{% else %}AI{% endif %}</div>
+                    {{ msg.content }}
+                    <span class="timestamp">{{ msg.created_at_str.split('T')[1][:8] }}</span>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="chat-input">
+            <input type="text" id="message-input" placeholder="メッセージを入力..." autocomplete="off">
+            <button id="send-btn">送信</button>
+        </div>
+    </div>
+
+    <!-- サイドエリア (ステータス & ランキング) -->
+    <div class="side-container">
+        <div class="status-box">
+            <h2>マイスコア</h2>
+            <p id="balance-display">{{ "{:,}".format(user.balance) }} 円</p>
+            <p id="my-rank-display">現在の順位: {{ my_rank }} 位</p>
+            <button id="invite-link-btn">友達を招待してポイント獲得</button>
+        </div>
+        <div class="leaderboard-box">
+            <h2>ランキング</h2>
+            <ul id="leaderboard-list">
+                {% for player in leaderboard %}
+                <li>
+                    <div><span class="rank">#{{ loop.index }}</span> <span class="username">{{ player.username }}</span></div>
+                    <span class="points">{{ "{:,}".format(player.balance) }} 円</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_script %}
+<script>
+    gsap.to(".main-container", { duration: 0.8, opacity: 1, scale: 1, ease: "back.out" });
+
+    const socket = io();
+    const chatBox = document.getElementById('chat-box');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const balanceDisplay = document.getElementById('balance-display');
+    const myRankDisplay = document.getElementById('my-rank-display');
+    const leaderboardList = document.getElementById('leaderboard-list');
+    const inviteBtn = document.getElementById('invite-link-btn');
+    
+    // 管理者チャット専用変数
+    {% if is_admin_chat %}
+    const isAdminChat = true;
+    const targetUserId = {{ target_user.id }};
+    {% else %}
+    const isAdminChat = false;
+    const targetUserId = null;
+    {% endif %}
+    let adminAutoMode = true; // 初期は自動応答モード
+    
+    // 管理者専用要素
+    const modeToggle = document.getElementById('mode-toggle');
+    
+    // 初期表示時に一番下までスクロール
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message) {
+            socket.emit('send_message', { 'message': message });
+            messageInput.value = '';
+        }
+    }
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+    socket.on('new_message', (data) => {
+        const div = document.createElement('div');
+        const userDiv = document.createElement('div');
+        const timeSpan = document.createElement('span');
+        
+        div.classList.add('message');
+        userDiv.classList.add('message-user');
+        timeSpan.classList.add('timestamp');
+        
+        userDiv.textContent = data.username === "System" ? "AI" : data.username;
+        div.textContent = data.message;
+        
+        // リアルタイムタイムスタンプ（秒まで表示）
+        const now = new Date(data.timestamp);
+        const timestamp = now.toLocaleTimeString('ja-JP', { 
+            hour12: false,
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
+        });
+        timeSpan.textContent = timestamp;
+        
+        div.prepend(userDiv);
+        div.appendChild(timeSpan);
+        
+        if (data.username === "{{ user.username }}") {
+            div.classList.add('sent');
+        } else {
+            div.classList.add('received');
+        }
+        // flex-direction: column-reverse のため、prependで一番下に追加したように見える
+        chatBox.prepend(div);
+    });
+
+    socket.on('update_balance', (data) => {
+        balanceDisplay.textContent = data.balance.toLocaleString() + ' 円';
+        myRankDisplay.textContent = '現在の順位: ' + data.my-rank + ' 位';
+        gsap.fromTo(balanceDisplay, { scale: 1.5, opacity: 0.5 }, { scale: 1, opacity: 1, duration: 0.5, ease: "elastic.out(1, 0.3)" });
+    });
+
+    socket.on('update_leaderboard', (data) => {
+        leaderboardList.innerHTML = '';
+        data.leaderboard.forEach((player, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <div><span class="rank">#${index + 1}</span> <span class="username">${player.username}</span></div>
+                <span class="points">${player.balance.toLocaleString()} 円</span>
+            `;
+            leaderboardList.appendChild(li);
+        });
+    });
+
+    inviteBtn.addEventListener('click', () => {
+        const inviteLink = `${window.location.origin}/?invite={{ user.invite_code }}`;
+        navigator.clipboard.writeText(inviteLink).then(() => {
+            alert('招待リンクをコピーしました！');
+        }, () => {
+            alert('コピーに失敗しました。');
+        });
+    });
+
+    // 天気・電車遅延情報の取得・更新機能
+    async function updateWeatherInfo() {
+        try {
+            const response = await fetch('/api/weather');
+            const data = await response.json();
+            const weatherElement = document.getElementById('weather-info');
+            
+            if (data.status === 'success') {
+                weatherElement.innerHTML = `
+                    <div><strong>${data.area}</strong></div>
+                    <div>${data.weather}</div>
+                    <div>最高気温: ${data.max_temp}°C</div>
+                    <div>最低気温: ${data.min_temp}°C</div>
+                `;
+            } else {
+                weatherElement.innerHTML = '<div>未実装</div>';
+            }
+        } catch (error) {
+            document.getElementById('weather-info').innerHTML = '<div>未実装</div>';
+        }
+    }
+
+    async function updateTrainDelayInfo() {
+        try {
+            const response = await fetch('/api/train_delay');
+            const data = await response.json();
+            const trainElement = document.getElementById('train-delay-info');
+            
+            if (data.status === 'success') {
+                let html = '';
+                data.delays.forEach(delay => {
+                    const statusClass = delay.status === '平常運転' ? 'normal' : 'delayed';
+                    html += `
+                        <div class="delay-item">
+                            <span>${delay.line}</span>
+                            <span class="delay-status ${statusClass}">${delay.status}</span>
+                        </div>
+                    `;
+                });
+                trainElement.innerHTML = html;
+            } else {
+                trainElement.innerHTML = '<div>未実装</div>';
+            }
+        } catch (error) {
+            document.getElementById('train-delay-info').innerHTML = '<div>未実装</div>';
+        }
+    }
+
+    // 初回読み込み
+    updateWeatherInfo();
+    updateTrainDelayInfo();
+
+    // 5分ごとに更新
+    setInterval(updateWeatherInfo, 5 * 60 * 1000);
+    setInterval(updateTrainDelayInfo, 5 * 60 * 1000);
+</script>
+{% endblock %}

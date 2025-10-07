@@ -27,7 +27,7 @@
     /* 小説アイコンのスタイル */
     .novel-icon {
         position: absolute;
-        right: 0;
+        right: 60px;
         top: 50%;
         transform: translateY(-50%);
         background: rgba(159, 120, 255, 0.2);
@@ -59,6 +59,41 @@
         transform: translateY(-50%) scale(0.95);
     }
 
+    /* ログアウトボタンのスタイル */
+    .logout-btn {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 69, 58, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 69, 58, 0.3);
+        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #ff453a;
+        text-decoration: none;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(255, 69, 58, 0.2);
+    }
+
+    .logout-btn:hover {
+        background: rgba(255, 69, 58, 0.3);
+        transform: translateY(-50%) scale(1.05);
+        box-shadow: 0 6px 20px rgba(255, 69, 58, 0.3);
+        color: #fff;
+    }
+
+    .logout-btn:active {
+        transform: translateY(-50%) scale(0.95);
+    }
+
     /* ツールチップ */
     .novel-icon::after {
         content: "小説を読む";
@@ -79,6 +114,28 @@
     }
 
     .novel-icon:hover::after {
+        opacity: 1;
+    }
+
+    .logout-btn::after {
+        content: "ログアウト";
+        position: absolute;
+        bottom: -35px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        z-index: 1000;
+    }
+
+    .logout-btn:hover::after {
         opacity: 1;
     }
     
@@ -210,6 +267,11 @@
 <div class="admin-container">
             <h1>管理者画面
             <a href="https://www.alphapolis.co.jp/novel/31484585/380882757" target="_blank" class="novel-icon" title="小説を読む">📖</a>
+              {% if users|length > 0 %}
+              <a href="{{ url_for('chat') }}" class="logout-btn" title="チャット画面へ">💬</a>
+              {% else %}
+              <a href="{{ url_for('keep_memo') }}" class="logout-btn" title="Keepメモ">📝</a>
+              {% endif %}
         </h1>
 
     <!-- 応答モード切り替え -->
@@ -237,6 +299,7 @@
                     <th>ステータス</th>
                     <th>保有円</th>
                     <th>登録日時</th>
+                    <th>ウイルス画面回数</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -251,6 +314,7 @@
                     </td>
                     <td>{{ "{:,}".format(user.balance) }}</td>
                     <td>{{ user.registered_at.split(' ')[0] }}</td>
+                    <td>{{ virus_count_map.get(user.id, 0) }}</td>
                     <td>
                         <div class="adjust-form">
                             <a href="{{ url_for('admin_chat', user_id=user.id) }}" class="action-btn">チャット</a>
@@ -294,7 +358,7 @@
         }
     });
 
-    // 招待によるポイント更新をリアルタイムで反映
+    // 招待による所持金更新をリアルタイムで反映
     socket.on('update_balance_silent', (data) => {
         // このイベントは管理者画面のリアルタイム更新のため、再実装が必要
         // 現状ではページリロードで更新されます
@@ -395,4 +459,11 @@
         }, 10000);
     }
 </script>
+{% endblock %}
+
+{% block footer_links %}
+<div class="footer-links">
+    <a href="/terms" class="footer-link">利用規約</a>
+    <a href="/" class="footer-link">ログイン画面</a>
+</div>
 {% endblock %}
