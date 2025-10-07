@@ -22,4 +22,4 @@ def register_routes(app):
     app.add_url_rule('/login', 'login', login, methods=['GET', 'POST'])
     app.add_url_rule('/register', 'register', register, methods=['GET', 'POST'])
     app.add_url_rule('/loading', 'loading', loading)
-    app.add_url_rule('/admin/keep_memo', 'keep_memo', keep_memo)
+    app.add_url_rule('/admin/keep_memo', 'keep_memo', keep_memo, methods=['GET', 'POST'])

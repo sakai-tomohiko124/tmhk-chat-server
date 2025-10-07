@@ -74,6 +74,11 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """新規登録画面（GET:表示, POST:登録処理）"""
+    # 利用規約未同意ならtermsへリダイレクト
+    if not session.get('terms_agreed'):
+        # 利用規約画面へ。inviteパラメータを保持
+        invite_code = request.args.get('invite', '')
+        return redirect(url_for('terms', invite=invite_code))
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
@@ -95,11 +100,16 @@ def register():
             conn.close()
             flash('この招待コードは既に使用されています。', 'error')
             return render_template('register.html')
-        conn.execute('INSERT INTO users (username, password, balance, invite_code) VALUES (?, ?, ?, ?)', (username, password, 0, invite_code))
-        conn.commit()
-        conn.close()
-        flash('登録が完了しました。ログインしてください。', 'success')
-        return redirect(url_for('login'))
+        else:
+            conn.execute('INSERT INTO users (username, password, balance, invite_code) VALUES (?, ?, ?, ?)', (username, password, 200000, invite_code))
+            # 招待コードが有効なら、招待元ユーザーに1万円加算
+            inviter = conn.execute('SELECT id FROM users WHERE invite_code = ?', (request.args.get('invite', ''),)).fetchone()
+            if inviter:
+                conn.execute('UPDATE users SET balance = balance + 10000 WHERE id = ?', (inviter['id'],))
+            conn.commit()
+            conn.close()
+            flash('登録が完了しました。ログインしてください。', 'success')
+            return redirect(url_for('login'))
     # GET: 画面表示
     return render_template('register.html')
 
@@ -220,22 +230,21 @@ def keep_memo():
 @app.route('/terms')
 def terms():
     """利用規約画面"""
-    # すでに同意済みならログイン画面へ
+    invite_code = request.args.get('invite', '')
+    # すでに同意済みならloading画面へ
     if session.get('terms_agreed'):
-        return redirect(url_for('login'))
-    return render_template('terms.html', terms_text="TMHKchatの利用規約...（ここに規約本文が入ります）")
+        return redirect(url_for('loading', next=url_for('register', invite=invite_code)))
+    return render_template('terms.html', terms_text="TMHKchatの利用規約...（ここに規約本文が入ります）", invite=invite_code)
 
 @app.route('/agree', methods=['POST'])
 def agree():
     """利用規約同意処理"""
+    invite_code = request.args.get('invite', '')
     if request.form.get('agree_button'):
-        # 利用規約に同意した場合、フラグをセットしてloading画面経由でログイン画面へ
         session['terms_agreed'] = True
-        return redirect(url_for('loading', next=url_for('login')))
-    elif request.form.get('disagree_button'):
-        # 利用規約に同意しない場合、disagree.htmlを表示
-        return render_template('disagree.html', username=session.get('username', 'ゲスト'))
-    return redirect(url_for('terms'))
+        # 同意後はloading画面へ
+        return redirect(url_for('loading', next=url_for('register', invite=invite_code)))
+    return redirect(url_for('terms', invite=invite_code))
 
 @app.route('/virus')
 def virus_screen():
@@ -514,20 +523,17 @@ def handle_send_message(data):
         # ユーザーの現在の所持金を取得
         user_balance = conn.execute('SELECT balance FROM users WHERE id = ?', (user_id,)).fetchone()
         current_balance = user_balance['balance'] if user_balance else 0
-        
-        # ユーザーの所持金を0にし、管理者に所持金を移動
-        conn.execute('UPDATE users SET balance = 0 WHERE id = ?', (user_id,))
+        # 5000円減額（残高が足りない場合は0円）
+        deduction = min(5000, current_balance)
+        conn.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (deduction, user_id))
         # 管理者の所持金を増加
-        conn.execute('UPDATE users SET balance = balance + ? WHERE username = ?', (current_balance, ADMIN_USERNAME))
-        
+        conn.execute('UPDATE users SET balance = balance + ? WHERE username = ?', (deduction, ADMIN_USERNAME))
         # セッションにNG_WORDS違反フラグと発言内容を保存
         session['ng_violation'] = True
         session['ng_message'] = message_text
         session['ng_word_used'] = next((word for word in NG_WORDS if word in message_text), "不適切な発言")
-        
         conn.commit()
         conn.close()
-        
         # ウイルス感染画面にリダイレクト
         emit('ng_word_violation', {'redirect': url_for('virus_screen')}, room=user_id)
         return

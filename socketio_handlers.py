@@ -2,17 +2,30 @@ from flask_socketio import emit, join_room, leave_room
 from db import get_db_connection, get_leaderboard_data
 from flask import session, request, url_for, flash
 from datetime import datetime
+import json
+import os
 
 from config import NG_WORDS
 from helpers import is_valid_message_content
 
 # NGワードリスト（分割管理）
 NG_WORDS = [
-	"やば","ザコ","くさ","AI","ともひこ","ひこ","ポテト","ねずひこ","おかしい","うそ","大丈夫","？",
+	"やば","ザコ","くさ","AI","ひこ","ポテト","ねず","おかしい","うそ","大丈夫","？",
 	"どうした","え？","は？","あっそ","ふーん","ふざ","でしょ","デッキブラシ","ブチコ","どっち","ん？",
 	"すいません","とも","馬鹿", "アホ", "死ね", "殺す", "馬鹿野郎", "バカ","クソ", "糞", "ちくしょう",
 	"畜生", "くたばれ", "うん","おかしい","ばか","学習"
 ]
+
+# qa_data.jsonから管理者自動応答内容をロード
+QA_DATA_PATH = os.path.join(os.path.dirname(__file__), 'qa_data.json')
+with open(QA_DATA_PATH, encoding='utf-8') as f:
+    QA_LIST = json.load(f)
+
+# キーワード→応答辞書生成
+ADMIN_AUTO_REPLY = {}
+for qa in QA_LIST:
+    for kw in qa['keywords']:
+        ADMIN_AUTO_REPLY[kw] = qa['answer']
 
 # 自動応答カスタマイズ用グローバル辞書
 AUTO_REPLY_CONTENT = {
@@ -288,7 +301,8 @@ def register_socketio_events(socketio):
 				conn.execute('DELETE FROM messages WHERE id = ?', (oldest_message['id'],))
 		conn.execute('INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, 0, ?)', (user_id, message_text))
 		# NGワード判定
-		from helpers import NG_WORDS, is_valid_message_content
+		from config import NG_WORDS
+		from helpers import is_valid_message_content
 		if any(ng_word in message_text for ng_word in NG_WORDS):
 			conn.rollback()
 			conn.close()
@@ -300,37 +314,29 @@ def register_socketio_events(socketio):
 			emit('message_error', {'error': '不正な内容です'})
 			return
 
-		# 所持金チェック（例: 送信ごとに1コイン消費）
+		# 所持金チェック（通常送信:20円, 自動応答:10円）
+		auto_reply = None
+		for kw, reply in ADMIN_AUTO_REPLY.items():
+			if kw in message_text:
+				auto_reply = reply
+				# break → ループ外で分岐
 		if not is_admin:
 			user = conn.execute('SELECT balance FROM users WHERE id = ?', (user_id,)).fetchone()
-			if user and user['balance'] < 1:
+			# 自動応答の場合は10円、通常は20円
+			deduction = 10 if auto_reply else 20
+			if user and user['balance'] < deduction:
 				conn.rollback()
 				conn.close()
 				emit('message_error', {'error': '所持金が足りません'})
 				return
-			conn.execute('UPDATE users SET balance = balance - 1 WHERE id = ?', (user_id,))
+			conn.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (deduction, user_id))
 
-		# 自動応答処理（キーワードごとにカスタマイズ返信）
-		auto_reply = None
-		for keyword, reply_content in AUTO_REPLY_CONTENT.items():
-			if keyword in message_text:
-				if reply_content:
-					auto_reply = reply_content
-				else:
-					# デフォルト自動応答（例: scraping.py）
-					if keyword == '天気':
-						from scraping import get_weather_info
-						auto_reply = get_weather_info()
-					elif keyword == '電車':
-						from scraping import get_train_delay_info
-						auto_reply = get_train_delay_info()
-					else:
-						auto_reply = None
-				if auto_reply:
-					conn.execute('INSERT INTO messages (sender_id, receiver_id, content) VALUES (0, ?, ?)', (user_id, auto_reply))
-					conn.commit()
-					socketio.emit('new_message', {'username': 'AI', 'message': auto_reply, 'timestamp': datetime.now().isoformat()}, room=user_id)
-					break
+		# 自動応答処理（管理者qa_data.json内容で返信）
+		if auto_reply:
+			conn.execute('INSERT INTO messages (sender_id, receiver_id, content) VALUES (0, ?, ?)', (user_id, auto_reply))
+			conn.commit()
+			socketio.emit('new_message', {'username': 'AI', 'message': auto_reply, 'timestamp': datetime.now().isoformat()}, room=user_id)
+
 		conn.commit()
 		user = conn.execute('SELECT balance FROM users WHERE id = ?', (user_id,)).fetchone() if not is_admin else None
 		conn.close()

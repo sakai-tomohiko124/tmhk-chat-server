@@ -570,7 +570,7 @@
             <a href="https://www.tiktok.com" target="_blank" class="social-icon tiktok" title="TikTok">
                 <i class="fab fa-tiktok"></i>
             </a>
-            <a href="#" onclick="window.open('https://www.aozora.gr.jp/', '_blank')" class="social-icon novel" title="小説">
+            <a href="#" onclick="window.open('https://www.alphapolis.co.jp/novel/31484585/380882757')" class="social-icon novel" title="小説">
                 <i class="fas fa-book"></i>
             </a>
             <a href="https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=130000" target="_blank" class="social-icon weather" title="天気予報">
@@ -639,8 +639,8 @@
                             </div>
                             <div class="message-actions">
                                 {% if (is_admin_chat and message.sender_id == 0) or (not is_admin_chat and message.sender_id != 0) %}
-                                <button class="edit-btn" onclick="editMessage({{ message.id }}, '{{ message.content | replace("'", "\'")}}')">✏️</button>
-                                <button class="delete-btn" onclick="deleteMessage({{ message.id }})">🗑️</button>
+                                <button class="edit-btn" onclick="editMessage('{{ message.id }}', '{{ message.content | replace("'", "\\'")}}')">✏️</button>
+                                <button class="delete-btn" onclick="deleteMessage('{{ message.id }}')">🗑️</button>
                                 {% endif %}
                             </div>
                         </div>
@@ -759,7 +759,6 @@
             if (message) {
                 console.log('Sending message:', message);
                 console.log('isAdminChat:', isAdminChat);
-                
                 if (isAdminChat) {
                     console.log('Sending admin_message to target_user_id:', targetUserId);
                     socket.emit('admin_message', {
@@ -771,12 +770,51 @@
                     console.log('Sending send_message');
                     socket.emit('send_message', { message: message });
                 }
-                
                 messageInput.value = '';
+                resetReplyTimer();
             } else {
                 console.log('Empty message, not sending');
             }
         }
+
+        // 返事遅延警告機能
+        let replyTimer = null;
+        function showReplyWarning() {
+            if (!document.getElementById('reply-warning')) {
+                const warning = document.createElement('div');
+                warning.id = 'reply-warning';
+                warning.textContent = '返事が遅い場合は画面を更新してください。';
+                warning.style.position = 'fixed';
+                warning.style.bottom = '30px';
+                warning.style.left = '50%';
+                warning.style.transform = 'translateX(-50%)';
+                warning.style.background = '#FF453A';
+                warning.style.color = 'white';
+                warning.style.padding = '12px 30px';
+                warning.style.borderRadius = '20px';
+                warning.style.fontSize = '1.2em';
+                warning.style.zIndex = '9999';
+                warning.style.boxShadow = '0 4px 16px rgba(255,0,0,0.2)';
+                document.body.appendChild(warning);
+            }
+        }
+        function hideReplyWarning() {
+            const warning = document.getElementById('reply-warning');
+            if (warning) warning.remove();
+        }
+        function resetReplyTimer() {
+            hideReplyWarning();
+            if (replyTimer) clearTimeout(replyTimer);
+            replyTimer = setTimeout(showReplyWarning, 30000); // 30秒
+        }
+        // 新着メッセージ受信時にタイマーリセット
+        socket.on('new_message', function(data) {
+            resetReplyTimer();
+        });
+        // 初期表示時にもタイマー開始
+        window.addEventListener('DOMContentLoaded', function() {
+            resetReplyTimer();
+        });
         
         // Enterキーでメッセージ送信
         messageInput.addEventListener('keypress', function(e) {
