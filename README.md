@@ -12,8 +12,13 @@
 ## 📊 実装状況
 
 ### ✅ 現在完成している機能
-- プロジェクト構造設計
-- 開発環境セットアップ準備
+- ✅ プロジェクト構造設計（完全版）
+- ✅ データベースモデル設計（10モデル）
+- ✅ Python venv仮想環境セットアップ
+- ✅ AWS EC2デプロイ設定（Nginx + Gunicorn + PM2）
+- ✅ Render.comデプロイ設定（永続無料）
+- ✅ PostgreSQL設定
+- ✅ Git リポジトリ初期化
 
 ### 🔄 現在開発中の機能
 - 基本チャット機能（1-15）
@@ -151,8 +156,11 @@
 
 ### Phase 1: MVP開発（1-3ヶ月）
 - ✅ プロジェクト構造設計
+- ✅ データベース設計
+- ✅ デプロイ環境設定
+- ⏳ 認証API実装（16-18機能）
 - ⏳ 基本チャット機能（1-15機能）
-- ⏳ ユーザー管理機能（16-25機能）
+- ⏳ ユーザー管理機能（19-25機能）
 - ⏳ メディア送受信（26-40機能）
 
 ### Phase 2: 機能拡張（4-6ヶ月）
@@ -194,6 +202,62 @@ TBD
 ## 🙏 謝辞
 設計書を作成してくれたともひこに感謝！2035年まで一緒に最高のアプリ作ろう！
 
+## 📚 ドキュメント
+
+- **[デプロイガイド](docs/DEPLOYMENT.md)** - AWS EC2 / Render.com デプロイ完全手順
+- **[プロジェクト構造](PROJECT_STRUCTURE.md)** - ディレクトリ構造の詳細説明
+- **[API仕様書](docs/API.md)** - RESTful API エンドポイント一覧（準備中）
+- **[データベース設計](docs/DATABASE.md)** - スキーマ・モデル詳細（準備中）
+
+## 🚀 クイックスタート
+
+### ローカル開発環境
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/YOUR_USERNAME/ARE.git
+cd ARE/backend
+
+# Python仮想環境を作成
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 依存関係をインストール
+pip install -r requirements.txt
+
+# 環境変数を設定
+cp .env.example .env
+nano .env  # 設定を編集
+
+# データベースマイグレーション
+export FLASK_APP=wsgi.py
+flask db init
+flask db migrate -m "Initial migration"
+flask db upgrade
+
+# 開発サーバー起動
+python run.py
+```
+
+### AWS EC2デプロイ
+
+```bash
+# サーバーにSSH接続
+ssh -i "your-key.pem" ubuntu@your-ec2-ip
+
+# 初回セットアップ
+chmod +x deployment/aws/setup_ec2.sh
+./deployment/aws/setup_ec2.sh
+
+# デプロイ（2回目以降）
+chmod +x deployment/aws/deploy.sh
+./deployment/aws/deploy.sh
+```
+
+詳細は[デプロイガイド](docs/DEPLOYMENT.md)を参照してください。
+
 ---
-**最終更新**: 2025-10-10
-**プロジェクトステータス**: 🟡 開発中
+**最終更新**: 2025-10-10  
+**プロジェクトステータス**: 🟡 開発中  
+**コミット数**: 2  
+**完成度**: 15% (Phase 1 進行中)
