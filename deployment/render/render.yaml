@@ -1,0 +1,53 @@
+# ARE - Render.com Configuration
+# GitHubリポジトリのルートに配置することで、Renderが自動認識します
+
+services:
+  # バックエンドAPI
+  - type: web
+    name: are-backend
+    env: python
+    region: singapore  # または oregon, frankfurt など
+    plan: free  # 永続無料プラン
+    buildCommand: |
+      cd backend
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend
+      gunicorn -c gunicorn_config.py wsgi:app
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_APP
+        value: wsgi.py
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: are-database
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: are-redis
+          property: connectionString
+      - key: PORT
+        value: 5000
+    healthCheckPath: /api/v1/health
+    autoDeploy: true  # mainブランチへのpush時に自動デプロイ
+
+  # PostgreSQLデータベース
+databases:
+  - name: are-database
+    databaseName: are_production
+    user: are_user
+    plan: free  # 永続無料プラン（90日間未使用で削除）
+
+  # Redis（キャッシュ・セッション管理）
+  # 注意: Renderの無料プランではRedisは有料です
+  # 代替: Upstash Redis（無料枠あり）やメモリ内キャッシュを使用
+  # - name: are-redis
+  #   plan: free
+  #   maxmemoryPolicy: allkeys-lru
