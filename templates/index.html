@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <!-- 文字コードをUTF-8に設定 -->
+    <meta charset="UTF-8">
+    
+    <!-- スマートフォンなど、様々なデバイスで表示を最適化するための設定 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- ブラウザのタブに表示されるページのタイトル -->
+    <title>チャットへようこそ</title>
+    
+    <!-- ページのデザインを定義するCSS（スタイルシート） -->
+    <style>
+        /* ページ全体の基本的なスタイル */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5; /* 少し落ち着いた背景色 */
+            display: flex;
+            justify-content: center; /* 水平方向の中央揃え */
+            align-items: center;     /* 垂直方向の中央揃え */
+            height: 100vh;           /* 画面の高さいっぱいに表示 */
+            margin: 0;
+        }
+
+        /* ログインフォームのコンテナ */
+        .login-container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* 影をつけて立体感を出す */
+            width: 100%;
+            max-width: 400px; /* 最大幅を指定 */
+        }
+        
+        /* h1タグ（一番大きな見出し）のスタイル */
+        h1 {
+            text-align: center; /* テキストを中央揃えにする */
+            color: #333;       /* 文字色を濃い灰色にする */
+            margin-top: 0;
+            margin-bottom: 24px;
+        }
+        
+        /* form（入力フォーム全体）のスタイル */
+        form {
+            display: flex;
+            flex-direction: column; /* 子要素を縦に並べる */
+        }
+        
+        /* テキスト入力欄（input type="text"）のスタイル */
+        input[type="text"] {
+            padding: 12px;           /* 内側の余白を少し大きめに */
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        /* 送信ボタン（input type="submit"）のスタイル */
+        input[type="submit"] {
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.2s; /* 背景色が滑らかに変わるアニメーション */
+        }
+        
+        /* 送信ボタンにマウスカーソルが乗ったときのスタイル */
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        /* Flashメッセージ（エラーメッセージなど）のスタイル */
+        .flash-messages {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 15px 0;
+        }
+
+        .flash {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            background-color: #f8d7da; /* 背景を薄い赤色に */
+            color: #721c24;           /* 文字を濃い赤色に */
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="login-container">
+        <!-- ページの一番大きな見出し -->
+        <h1>チャットに参加</h1>
+    
+        <!-- 
+          Flaskの `flash()` 関数で設定されたメッセージを表示するエリアです。
+          `get_flashed_messages()` でメッセージのリストを取得し、ループで表示します。
+        -->
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <ul class="flash-messages">
+              {% for message in messages %}
+                <li class="flash">{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+
+        <!-- ユーザーからの入力を受け付けるフォーム -->
+        <form action="{{ url_for('index') }}" method="post">
+            
+            <!-- ユーザー名を入力するためのテキストボックス -->
+            <input type="text" name="username" placeholder="あなたの名前を入力" required autofocus>
+            
+            <!-- フォームの内容を送信するためのボタン -->
+            <input type="submit" value="チャットを開始">
+        </form>
+    </div>
+    
+</body>
+</html>

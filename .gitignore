@@ -1,0 +1,24 @@
+# .gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 仮想環境
+venv/
+.venv/
+env/
+.env/
+
+# データベースファイル
+*.db
+*.sqlite3
+
+# アップロードされたファイル（本番では別の方法で管理することが多い）
+/uploads/
+
+# OS・エディタ固有ファイル
+.DS_Store
+.vscode/
