@@ -116,7 +116,6 @@ python-dateutil
 python-dotenv
 python-engineio
 python-magic
-python-magic-bin
 python-socketio
 pytweening
 pytz
