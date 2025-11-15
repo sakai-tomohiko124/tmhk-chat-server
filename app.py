@@ -17,6 +17,8 @@ import base64
 import uuid
 import shutil
 from openai import OpenAI
+import json
+import random
 
 # --- アプリケーションの基本設定 ---
 app = Flask(__name__)
@@ -98,6 +100,30 @@ GROUP_ROOM = "__group__"
 ONLINE_USERS_KEY = "online_users" # Redisでオンラインユーザーを管理するためのキー名
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi', 'pdf'}
 MAX_STORAGE_BYTES = 1 * 1024 * 1024 * 1024 * 1024  # ストレージ上限を1TBに設定
+
+# --- QA.jsonの読み込み ---
+def load_qa_data():
+    """QA.jsonファイルを読み込む"""
+    try:
+        with open('QA.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Warning: Could not load QA.json: {e}")
+        return []
+
+qa_data = load_qa_data()
+
+# --- 画像認識用のデータ取得 ---
+def get_image_recognition_options():
+    """画像認識のキーワードリストを取得"""
+    options = []
+    for item in qa_data:
+        for keyword in item.get('keywords', []):
+            if keyword.startswith('画像認識:'):
+                options.append(keyword.replace('画像認識:', ''))
+    return options
+
+image_recognition_options = get_image_recognition_options()
 
 # --- データベース関連 ---
 def get_db():
@@ -205,41 +231,267 @@ def generate_dm_room(user1, user2):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# --- 金額管理ヘルパー関数 ---
+def update_user_balance(user_id, amount, transaction_type, description):
+    """ユーザーの残高を更新し、取引ログを記録"""
+    db = get_db()
+    
+    # 現在の残高を取得
+    user = db.execute("SELECT balance, username FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        return False
+    
+    balance_before = user['balance']
+    balance_after = balance_before + amount
+    
+    # 残高が負にならないようにする
+    if balance_after < 0:
+        balance_after = 0
+    
+    # 残高を更新
+    db.execute("UPDATE users SET balance = ? WHERE id = ?", (balance_after, user_id))
+    
+    # 取引ログを記録
+    db.execute(
+        "INSERT INTO money_transactions (user_id, username, amount, transaction_type, description, balance_before, balance_after) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (user_id, user['username'], amount, transaction_type, description, balance_before, balance_after)
+    )
+    
+    db.commit()
+    return True
+
+def charge_user_action(user_id, action_type):
+    """アクション実行時に100円を課金"""
+    amount = -100
+    description = f"{action_type}の実行"
+    return update_user_balance(user_id, amount, 'action_fee', description)
+
+def apply_virus_penalty(user_id):
+    """ウイルス感染ペナルティ（残高の50%を没収）"""
+    db = get_db()
+    user = db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)).fetchone()
+    if user:
+        penalty = -int(user['balance'] * 0.5)
+        return update_user_balance(user_id, penalty, 'virus_penalty', 'ウイルス感染ペナルティ')
+    return False
+
+def monthly_bonus():
+    """毎月20000円を全ユーザーに付与（cronで実行）"""
+    db = get_db()
+    users = db.execute("SELECT id FROM users WHERE is_active = 1").fetchall()
+    for user in users:
+        update_user_balance(user['id'], 20000, 'monthly_bonus', '月次ボーナス')
+    db.commit()
+
+def premium_bonus():
+    """144日ごとに10000円をプレミアムユーザーに付与（cronで実行）"""
+    db = get_db()
+    users = db.execute("SELECT id FROM users WHERE is_active = 1 AND phone_number IS NOT NULL AND email IS NOT NULL").fetchall()
+    for user in users:
+        update_user_balance(user['id'], 10000, 'premium_bonus', 'プレミアムボーナス')
+    db.commit()
+
+# --- NGワード検出ヘルパー関数 ---
+def check_ng_words(message):
+    """メッセージにNGワードが含まれているかチェック"""
+    db = get_db()
+    ng_words = db.execute("SELECT word, severity FROM ng_words").fetchall()
+    
+    detected_words = []
+    for ng_word in ng_words:
+        if ng_word['word'] in message:
+            detected_words.append({
+                'word': ng_word['word'],
+                'severity': ng_word['severity']
+            })
+    
+    return detected_words
+
+def log_ng_word_violation(user_id, username, ng_word, message):
+    """NGワード違反をログに記録"""
+    db = get_db()
+    db.execute(
+        "INSERT INTO ng_word_logs (user_id, username, ng_word, message) VALUES (?, ?, ?, ?)",
+        (user_id, username, ng_word, message)
+    )
+    db.commit()
+
+def log_security_event(user_id, username, action, ip_address=None):
+    """セキュリティイベントをログに記録"""
+    db = get_db()
+    
+    # 同じユーザー・同じアクションの最近のログをチェック
+    recent_log = db.execute(
+        "SELECT id, attempt_count FROM security_logs WHERE user_id = ? AND action = ? AND datetime(created_at, '+1 minute') > datetime('now') ORDER BY created_at DESC LIMIT 1",
+        (user_id, action)
+    ).fetchone()
+    
+    if recent_log:
+        # 1分以内の同じアクションがあれば回数を増やす
+        new_count = recent_log['attempt_count'] + 1
+        db.execute(
+            "UPDATE security_logs SET attempt_count = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (new_count, recent_log['id'])
+        )
+    else:
+        # 新しいログを作成
+        db.execute(
+            "INSERT INTO security_logs (user_id, username, action, ip_address) VALUES (?, ?, ?, ?)",
+            (user_id, username, action, ip_address or request.remote_addr)
+        )
+    
+    db.commit()
+    
+    # 1分間に3回以上の違反でウイルス画面へ
+    total_count = db.execute(
+        "SELECT SUM(attempt_count) as total FROM security_logs WHERE user_id = ? AND datetime(created_at, '+1 minute') > datetime('now')",
+        (user_id,)
+    ).fetchone()
+    
+    if total_count and total_count['total'] >= 3:
+        return True  # ウイルス画面へリダイレクト
+    
+    return False
+
 # --- Flaskのルーティング (Webページ表示) ---
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST', 'HEAD'])
 def index():
-    if request.method == 'GET':
-        inviter = request.args.get('invite')
-        if inviter:
-            session['invited_by'] = inviter
-        return render_template('index.html')
+    """ログインページ"""
+    if request.method in ('GET', 'HEAD'):
+        # 自動ログインチェック
+        auto_login_token = request.cookies.get('auto_login_token')
+        if auto_login_token:
+            db = get_db()
+            user = db.execute(
+                "SELECT * FROM users WHERE auto_login_token = ? AND is_active = 1",
+                (auto_login_token,)
+            ).fetchone()
+            
+            if user:
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                session['is_admin'] = user['is_admin']
+                
+                # 最終ログイン時刻を更新
+                db.execute(
+                    "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
+                    (user['id'],)
+                )
+                db.commit()
+                
+                return redirect(url_for('ai_chat'))
+        
+        return render_template('login.html')
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
-        if not username:
-            flash("ユーザー名を入力してください.")
-            return redirect(url_for('index'))
-        if r:
-            try:
-                if r.sismember(ONLINE_USERS_KEY, username):
-                    flash("その名前は既に使用されています。")
-                    return redirect(url_for('index'))
-            except redis.exceptions.ConnectionError:
-                print("Warning: Could not check for duplicate username because Redis is not available.")
+        password = request.form.get('password', '').strip()
+        auto_login = request.form.get('auto_login')
         
-        session['username'] = 'ともひこ' if username == 'ともひこです' else username
-        session['is_admin'] = (username == 'ともひこです')
-
-        inviter = session.pop('invited_by', None)
-        if inviter and session['username'] != inviter:
-            dm_room = generate_dm_room(session['username'], inviter)
-            return redirect(url_for('chat', room=dm_room))
+        if not username or not password:
+            flash("ユーザー名とパスワードを入力してください。")
+            return redirect(url_for('index'))
+        
+        # パスワード検証（2文字以上、英数字・ひらがな・カタカナ・漢字のみ）
+        import re
+        if len(password) < 2:
+            flash("パスワードは2文字以上である必要があります。")
+            return redirect(url_for('index'))
+        
+        if not re.match(r'^[a-zA-Z0-9ぁ-んァ-ヶー一-龠々〆〤]+$', password):
+            flash("パスワードは英数字・ひらがな・カタカナ・漢字のみ使用できます。")
+            return redirect(url_for('index'))
+        
+        # データベースで認証
+        db = get_db()
+        user = db.execute(
+            "SELECT * FROM users WHERE username = ? AND password = ?",
+            (username, password)
+        ).fetchone()
+        
+        if not user:
+            flash("ユーザー名またはパスワードが正しくありません。")
+            return redirect(url_for('index'))
+        
+        if not user['is_active']:
+            flash("このアカウントは無効化されています。")
+            return redirect(url_for('index'))
+        
+        if user['is_infected']:
+            # ウイルス感染ログを記録
+            db.execute(
+                "INSERT INTO virus_logs (username, infection_type, description) VALUES (?, ?, ?)",
+                (username, 'login_attempt', 'ウイルス感染中のログイン試行')
+            )
+            db.commit()
+            return redirect(url_for('virus_page'))
+        
+        # セッションに保存
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        session['is_admin'] = user['is_admin']
+        
+        # 最終ログイン時刻を更新
+        db.execute(
+            "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
+            (user['id'],)
+        )
+        
+        # 自動ログイントークンを生成
+        response = None
+        if auto_login:
+            token = base64.b64encode(os.urandom(32)).decode('utf-8')
+            db.execute(
+                "UPDATE users SET auto_login_token = ? WHERE id = ?",
+                (token, user['id'])
+            )
+            db.commit()
+            
+            response = redirect(url_for('ai_chat'))
+            response.set_cookie('auto_login_token', token, max_age=30*24*60*60)  # 30日間
         else:
-            return redirect(url_for('chat', room=GROUP_ROOM))
+            response = redirect(url_for('ai_chat'))
+        
+        db.commit()
+        return response
+
+@app.route('/logout')
+def logout():
+    """ログアウト"""
+    user_id = session.get('user_id')
+    
+    if user_id:
+        db = get_db()
+        # 自動ログイントークンを削除
+        db.execute(
+            "UPDATE users SET auto_login_token = NULL WHERE id = ?",
+            (user_id,)
+        )
+        db.commit()
+    
+    session.clear()
+    response = redirect(url_for('index'))
+    response.set_cookie('auto_login_token', '', expires=0)
+    return response
+
+@app.route('/virus')
+def virus_page():
+    """ウイルス感染警告ページ"""
+    return render_template('virus.html')
 
 @app.route('/chat')
-@app.route('/chat/<room>')
-def chat(room=GROUP_ROOM):
+def ai_chat():
+    """AI専用チャット画面"""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('index'))
+    
+    return render_template('ai_chat.html')
+
+# 旧チャット機能（保持するが使用しない）
+@app.route('/old-chat')
+@app.route('/old-chat/<room>')
+def old_chat(room=GROUP_ROOM):
     username = session.get('username')
     if not username:
         return redirect(url_for('index'))
@@ -445,6 +697,165 @@ def features():
         return redirect(url_for('index'))
     return render_template('features.html')
 
+@app.route('/api/weather')
+def api_weather():
+    """天気予報データをJSON形式で返す"""
+    try:
+        weather_file = os.path.join(os.path.dirname(__file__), 'weather_info.json')
+        if os.path.exists(weather_file):
+            with open(weather_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return jsonify(data)
+        else:
+            return jsonify({'error': '天気予報データが見つかりません'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/train')
+def api_train():
+    """鉄道運行情報データをJSON形式で返す"""
+    try:
+        train_file = os.path.join(os.path.dirname(__file__), 'train_info.json')
+        if os.path.exists(train_file):
+            with open(train_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return jsonify(data)
+        else:
+            return jsonify({'error': '鉄道運行情報データが見つかりません'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/weather')
+def weather_page():
+    """天気予報ページ"""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('index'))
+    return render_template('weather.html')
+
+@app.route('/train')
+def train_page():
+    """鉄道運行情報ページ"""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('index'))
+    return render_template('train.html')
+
+@app.route('/download_document', methods=['POST'])
+def download_document():
+    """ドキュメント作成してダウンロード"""
+    username = session.get('username')
+    user_id = session.get('user_id')
+    
+    if not username or not user_id:
+        return jsonify({'error': '認証が必要です'}), 401
+    
+    try:
+        # 100円課金
+        charge_user_action(user_id, 'ドキュメント作成')
+        
+        data = request.get_json()
+        title = data.get('title', 'ドキュメント')
+        content = data.get('content', '')
+        
+        # ファイル名を生成
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{title}_{timestamp}.txt"
+        safe_filename = secure_filename(filename)
+        
+        # ドキュメントフォルダを作成
+        docs_folder = os.path.join(app.config['UPLOAD_FOLDER'], 'documents')
+        os.makedirs(docs_folder, exist_ok=True)
+        
+        # テキストファイルを作成
+        filepath = os.path.join(docs_folder, safe_filename)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(f"タイトル: {title}\n")
+            f.write(f"作成者: {username}\n")
+            f.write(f"作成日時: {datetime.now().strftime('%Y年%m月%d日 %H時%M分%S秒')}\n")
+            f.write("-" * 50 + "\n\n")
+            f.write(content)
+        
+        # ファイルを送信
+        return send_from_directory(
+            docs_folder,
+            safe_filename,
+            as_attachment=True,
+            download_name=safe_filename
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user/money')
+def get_user_money():
+    """ユーザーの現在の残高を取得"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': '認証が必要です'}), 401
+    
+    db = get_db()
+    user = db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)).fetchone()
+    
+    if user:
+        return jsonify({'balance': user['balance']})
+    else:
+        return jsonify({'error': 'ユーザーが見つかりません'}), 404
+
+@app.route('/api/virus/action', methods=['POST'])
+def virus_action():
+    """ウイルス画面でのアクション処理"""
+    user_id = session.get('user_id')
+    username = session.get('username')
+    
+    if not user_id or not username:
+        return jsonify({'success': False}), 401
+    
+    try:
+        data = request.get_json()
+        action = data.get('action')
+        
+        db = get_db()
+        
+        # ウイルス感染ログを記録
+        db.execute(
+            "INSERT INTO virus_logs (user_id, username, infection_type, description) VALUES (?, ?, ?, ?)",
+            (user_id, username, 'security_violation', f'{action}ボタンを押下')
+        )
+        
+        # 残高の50%ペナルティを適用
+        apply_virus_penalty(user_id)
+        
+        # ユーザーを一時的に感染状態にマーク
+        db.execute("UPDATE users SET is_infected = 0 WHERE id = ?", (user_id,))
+        
+        db.commit()
+        
+        return jsonify({'success': True, 'message': '管理者に通知されました'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/security/log', methods=['POST'])
+def log_security_violation():
+    """セキュリティ違反をログに記録"""
+    user_id = session.get('user_id')
+    username = session.get('username')
+    
+    if not user_id or not username:
+        return jsonify({'redirect': False}), 401
+    
+    try:
+        data = request.get_json()
+        action = data.get('action')  # 'f12', 'contextmenu', 'refresh'
+        
+        should_redirect = log_security_event(user_id, username, action)
+        
+        return jsonify({'redirect': should_redirect, 'url': '/virus' if should_redirect else None})
+    
+    except Exception as e:
+        return jsonify({'redirect': False, 'error': str(e)}), 500
+
 @app.route('/online_status')
 def online_status():
     """Returns current online users and follow relationships for the session user.
@@ -499,19 +910,131 @@ def uploaded_file(filename):
 @admin_required
 def admin_panel():
     db = get_db()
-    users = db.execute("SELECT DISTINCT username FROM messages WHERE username != 'ともひこ' ORDER BY username").fetchall()
-    selected_user_name = request.args.get('user', None)
-    selected_user_messages = []
-    if selected_user_name:
-        selected_user_messages = db.execute(
-            "SELECT * FROM messages WHERE username = ? OR room LIKE ? OR room LIKE ? ORDER BY timestamp DESC",
-            (selected_user_name, f'dm_{selected_user_name}_%', f'dm_%_{selected_user_name}')
-        ).fetchall()
+    
+    # 全ユーザー情報を取得
+    users = db.execute("""
+        SELECT 
+            id, username, balance, is_active, is_infected, phone_number, email,
+            created_at, last_login
+        FROM users 
+        WHERE username != 'ともひこ' 
+        ORDER BY created_at DESC
+    """).fetchall()
+    
+    # 統計情報を取得
+    stats = {
+        'total_users': db.execute("SELECT COUNT(*) as count FROM users WHERE username != 'ともひこ'").fetchone()['count'],
+        'active_users': db.execute("SELECT COUNT(*) as count FROM users WHERE is_active = 1 AND username != 'ともひこ'").fetchone()['count'],
+        'infected_users': db.execute("SELECT COUNT(*) as count FROM users WHERE is_infected = 1").fetchone()['count'],
+        'total_balance': db.execute("SELECT SUM(balance) as total FROM users WHERE username != 'ともひこ'").fetchone()['total'] or 0,
+        'total_virus_logs': db.execute("SELECT COUNT(*) as count FROM virus_logs").fetchone()['count'],
+        'total_ng_words': db.execute("SELECT COUNT(*) as count FROM ng_word_logs").fetchone()['count'],
+        'total_security_events': db.execute("SELECT COUNT(*) as count FROM security_logs").fetchone()['count']
+    }
+    
+    # 最近のアクティビティ
+    recent_virus_logs = db.execute("""
+        SELECT * FROM virus_logs 
+        ORDER BY infected_at DESC 
+        LIMIT 10
+    """).fetchall()
+    
+    recent_ng_words = db.execute("""
+        SELECT * FROM ng_word_logs 
+        ORDER BY detected_at DESC 
+        LIMIT 10
+    """).fetchall()
+    
+    recent_security_logs = db.execute("""
+        SELECT * FROM security_logs 
+        ORDER BY created_at DESC 
+        LIMIT 10
+    """).fetchall()
+    
     return render_template('admin.html',
                            users=users,
-                           selected_user=selected_user_name,
-                           messages=selected_user_messages,
+                           stats=stats,
+                           recent_virus_logs=recent_virus_logs,
+                           recent_ng_words=recent_ng_words,
+                           recent_security_logs=recent_security_logs,
                            username=session.get('username'))
+
+@app.route('/admin/user/<int:user_id>')
+@admin_required
+def admin_user_detail(user_id):
+    """特定ユーザーの詳細情報"""
+    db = get_db()
+    
+    user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        flash("ユーザーが見つかりません", 'error')
+        return redirect(url_for('admin_panel'))
+    
+    # 取引履歴
+    transactions = db.execute("""
+        SELECT * FROM money_transactions 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 50
+    """, (user_id,)).fetchall()
+    
+    # NGワード履歴
+    ng_word_logs = db.execute("""
+        SELECT * FROM ng_word_logs 
+        WHERE user_id = ? 
+        ORDER BY detected_at DESC 
+        LIMIT 50
+    """, (user_id,)).fetchall()
+    
+    # セキュリティログ
+    security_logs = db.execute("""
+        SELECT * FROM security_logs 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 50
+    """, (user_id,)).fetchall()
+    
+    # ウイルス感染履歴
+    virus_logs = db.execute("""
+        SELECT * FROM virus_logs 
+        WHERE user_id = ? 
+        ORDER BY infected_at DESC 
+        LIMIT 50
+    """, (user_id,)).fetchall()
+    
+    return jsonify({
+        'user': dict(user),
+        'transactions': [dict(t) for t in transactions],
+        'ng_word_logs': [dict(n) for n in ng_word_logs],
+        'security_logs': [dict(s) for s in security_logs],
+        'virus_logs': [dict(v) for v in virus_logs]
+    })
+
+@app.route('/admin/infect_user/<int:user_id>', methods=['POST'])
+@admin_required
+def infect_user(user_id):
+    """管理者がユーザーをウイルス感染状態にする"""
+    db = get_db()
+    
+    user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        return jsonify({'success': False, 'error': 'ユーザーが見つかりません'}), 404
+    
+    # ウイルス感染状態にする
+    db.execute("UPDATE users SET is_infected = 1 WHERE id = ?", (user_id,))
+    
+    # ログを記録
+    db.execute("""
+        INSERT INTO virus_logs (user_id, username, infection_type, description) 
+        VALUES (?, ?, ?, ?)
+    """, (user_id, user['username'], 'manual_infection', '管理者による手動感染'))
+    
+    # ペナルティを適用
+    apply_virus_penalty(user_id)
+    
+    db.commit()
+    
+    return jsonify({'success': True, 'message': 'ユーザーを感染状態にしました'})
 
 @app.route('/admin/edit_user', methods=['POST'])
 @admin_required
@@ -888,9 +1411,11 @@ def upload_chunk():
 # --- AI Chat WebSocket Handlers ---
 @socketio.on('send_to_ai')
 def handle_ai_message(data):
-    """Google Gemini AIへのメッセージ送信（既存機能との互換性）"""
+    """QA.jsonベースのAIボット（キーワードマッチング + NGワード検出）"""
     username = session.get('username')
-    if not username:
+    user_id = session.get('user_id')
+    
+    if not username or not user_id:
         emit('ai_response', {'message': 'ログインが必要です。'})
         return
     
@@ -898,63 +1423,127 @@ def handle_ai_message(data):
     if not message:
         return
     
-    # Google Gemini AIを使用
-    if not GOOGLE_API_KEY:
-        emit('ai_response', {'message': 'Google AI APIキーが設定されていません。'})
+    # NGワードチェック
+    ng_words_detected = check_ng_words(message)
+    if ng_words_detected:
+        # NGワード違反をログに記録
+        for ng_word_info in ng_words_detected:
+            log_ng_word_violation(user_id, username, ng_word_info['word'], message)
+        
+        # 100円 × NGワード数のペナルティ
+        penalty_amount = -100 * len(ng_words_detected)
+        update_user_balance(user_id, penalty_amount, 'ng_word_penalty', f'NGワード使用: {", ".join([w["word"] for w in ng_words_detected])}')
+        
+        emit('ai_response', {
+            'message': f'⚠️ NGワードが検出されました。ペナルティとして{abs(penalty_amount)}円が減額されました。',
+            'ng_words': [w['word'] for w in ng_words_detected]
+        })
         return
     
-    try:
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(message)
-        ai_response_text = response.text
-        emit('ai_response', {'message': ai_response_text})
-    except Exception as e:
-        emit('ai_response', {'message': f'申し訳ありません、AIとの通信中にエラーが発生しました: {str(e)}'})
+    # 通常のメッセージ送信で100円課金
+    charge_user_action(user_id, 'AIメッセージ送信')
+    
+    # QA.jsonからキーワードマッチング
+    ai_response_text = None
+    message_lower = message.lower()
+    
+    for item in qa_data:
+        keywords = item.get('keywords', [])
+        for keyword in keywords:
+            if keyword.lower() in message_lower:
+                ai_response_text = item.get('answer')
+                break
+        if ai_response_text:
+            break
+    
+    # マッチしない場合のデフォルト応答
+    if not ai_response_text:
+        ai_response_text = 'すみません、その質問には答えられません。別の言葉で聞いてみてください。'
+    
+    emit('ai_response', {'message': ai_response_text})
 
 @socketio.on('send_to_openai')
 def handle_openai_message(data):
-    """OpenAI GPTへのメッセージ送信（新機能）"""
+    """QA.jsonベースのAIボット（send_to_aiと同じ動作）"""
     username = session.get('username')
     if not username:
         emit('openai_response', {'message': 'ログインが必要です。'})
         return
     
     message = data.get('message', '').strip()
-    conversation_history = data.get('history', [])
     
     if not message:
         return
     
-    if not openai_client:
-        emit('openai_response', {'message': 'OpenAI APIキーが設定されていません。'})
+    # QA.jsonからキーワードマッチング
+    ai_response_text = None
+    message_lower = message.lower()
+    
+    for item in qa_data:
+        keywords = item.get('keywords', [])
+        for keyword in keywords:
+            if keyword.lower() in message_lower:
+                ai_response_text = item.get('answer')
+                break
+        if ai_response_text:
+            break
+    
+    # マッチしない場合のデフォルト応答
+    if not ai_response_text:
+        ai_response_text = 'すみません、その質問には答えられません。別の言葉で聞いてみてください。'
+    
+    emit('openai_response', {'message': ai_response_text})
+
+@socketio.on('image_recognition')
+def handle_image_recognition(data):
+    """画像認識リクエストの処理"""
+    username = session.get('username')
+    if not username:
+        emit('image_recognition_response', {'error': 'ログインが必要です。'})
         return
     
-    try:
-        # 会話履歴を構築
-        messages = [{"role": "system", "content": "あなたは親切で役に立つAIアシスタントです。日本語で丁寧に回答してください。"}]
-        messages.extend(conversation_history[-10:])  # 直近10件の履歴
-        messages.append({"role": "user", "content": message})
+    user_input = data.get('input', '').strip()
+    
+    if not image_recognition_options:
+        emit('image_recognition_response', {'error': 'QA.jsonが読み込まれていません。'})
+        return
+    
+    # ユーザーが入力した場合、完全一致をチェック
+    if user_input:
+        keyword = f'画像認識:{user_input}'
+        for item in qa_data:
+            if keyword in item.get('keywords', []):
+                emit('image_recognition_response', {
+                    'answer': item.get('answer'),
+                    'matched': True
+                })
+                return
         
-        # OpenAI APIでストリーミング応答を生成
-        response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            stream=True,
-            temperature=0.7,
-            max_tokens=1000
-        )
-        
-        # ストリーミングでクライアントに送信
-        for chunk in response:
-            if chunk.choices[0].delta.content is not None:
-                content = chunk.choices[0].delta.content
-                emit('openai_chunk', {'content': content})
-        
-        # 完了シグナルを送信
-        emit('openai_done', {})
-        
-    except Exception as e:
-        emit('openai_response', {'message': f'申し訳ありません、OpenAI APIとの通信中にエラーが発生しました: {str(e)}'})
+        # 一致しない場合
+        emit('image_recognition_response', {
+            'answer': f'「{user_input}」は認識できませんでした。',
+            'matched': False
+        })
+        return
+    
+    # ランダムで5つの選択肢を提示
+    random_options = random.sample(image_recognition_options, min(5, len(image_recognition_options)))
+    
+    # ランダムに1つを選んで認識結果とする
+    selected = random.choice(random_options)
+    keyword = f'画像認識:{selected}'
+    answer = ''
+    
+    for item in qa_data:
+        if keyword in item.get('keywords', []):
+            answer = item.get('answer')
+            break
+    
+    emit('image_recognition_response', {
+        'answer': answer,
+        'options': random_options,
+        'selected': selected
+    })
 
 # --- WebRTC Signaling Handlers ---
 @socketio.on('join_call')
@@ -1245,6 +1834,12 @@ def chat_room():
 def profile():
     """プロフィール画面"""
     return render_template('profile.html')
+
+# 画像認識画面
+@app.route('/image-recognition')
+def image_recognition():
+    """画像認識画面"""
+    return render_template('image_recognition.html')
 
 # --- SocketIOハンドラー追加 ---
 @socketio.on('join_room')

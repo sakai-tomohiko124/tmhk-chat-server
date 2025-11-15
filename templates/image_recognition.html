@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像認識AI</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2em;
+        }
+
+        .image-upload {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 30px;
+            background: #f8f9ff;
+        }
+
+        .image-upload:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .image-upload p {
+            color: #667eea;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .image-upload small {
+            color: #999;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .result-text {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .options {
+            margin-top: 20px;
+        }
+
+        .options h3 {
+            color: #764ba2;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .option-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+        }
+
+        .option-btn {
+            padding: 12px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .option-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .input-section {
+            margin-top: 20px;
+        }
+
+        .input-section input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+
+        .input-section input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 画像認識AI</h1>
+        
+        <div class="image-upload" onclick="document.getElementById('imageInput').click()">
+            <p>📸 画像をアップロード</p>
+            <small>クリックして画像を選択</small>
+        </div>
+        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+        
+        <img id="imagePreview" alt="プレビュー">
+        
+        <button class="btn btn-primary" id="recognizeBtn" disabled>AIに画像を認識させる</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>認識中...</p>
+        </div>
+        
+        <div class="result" id="result">
+            <h2>認識結果</h2>
+            <div class="result-text" id="resultText"></div>
+            
+            <div class="options">
+                <h3>もしかして...</h3>
+                <div class="option-buttons" id="optionButtons"></div>
+            </div>
+            
+            <div class="input-section">
+                <h3>自分で入力する</h3>
+                <input type="text" id="customInput" placeholder="例: 猫、犬、車など">
+                <button class="btn btn-primary" onclick="submitCustomInput()">認識</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const imageInput = document.getElementById('imageInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const recognizeBtn = document.getElementById('recognizeBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const resultText = document.getElementById('resultText');
+        const optionButtons = document.getElementById('optionButtons');
+        const customInput = document.getElementById('customInput');
+
+        // 画像選択時
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                    recognizeBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 認識ボタンクリック時
+        recognizeBtn.addEventListener('click', function() {
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            
+            // ランダム認識をリクエスト
+            socket.emit('image_recognition', {});
+        });
+
+        // 認識結果を受信
+        socket.on('image_recognition_response', function(data) {
+            loading.style.display = 'none';
+            result.style.display = 'block';
+            
+            if (data.error) {
+                resultText.textContent = data.error;
+                optionButtons.innerHTML = '';
+                return;
+            }
+            
+            resultText.textContent = data.answer || '認識できませんでした。';
+            
+            // 選択肢を表示
+            if (data.options) {
+                optionButtons.innerHTML = '';
+                data.options.forEach(option => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.textContent = option;
+                    btn.onclick = () => selectOption(option);
+                    optionButtons.appendChild(btn);
+                });
+            }
+        });
+
+        // 選択肢クリック時
+        function selectOption(option) {
+            loading.style.display = 'block';
+            socket.emit('image_recognition', { input: option });
+        }
+
+        // カスタム入力
+        function submitCustomInput() {
+            const input = customInput.value.trim();
+            if (input) {
+                loading.style.display = 'block';
+                socket.emit('image_recognition', { input: input });
+                customInput.value = '';
+            }
+        }
+
+        // Enterキーで送信
+        customInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitCustomInput();
+            }
+        });
+    </script>
+</body>
+</html>
