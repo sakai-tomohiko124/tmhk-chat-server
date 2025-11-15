@@ -41,14 +41,14 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git pull --rebase --autostash || git pull --no-rebase
+          git pull --rebase --autostash || git pull --no-rebase || true
           git add train_info.json 2>/dev/null || true
-          if [ -d archive/train ] && [ "$(ls -A archive/train 2>/dev/null)" ]; then
-            git add archive/train/
+          if [ -d archive/train ] && [ -n "$(ls -A archive/train 2>/dev/null)" ]; then
+            git add archive/train/ 2>/dev/null || true
           fi
-          if [[ -n $(git status --porcelain) ]]; then
-            git commit -m "Update train_info.json [bot]"
-            git push
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "Update train_info.json [bot]" || exit 0
+            git push || exit 0
           else
             echo "No changes to commit."
           fi
