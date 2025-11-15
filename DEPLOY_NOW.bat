@@ -28,7 +28,8 @@ echo [OK] サーバーに到達できます
 echo.
 
 echo [2/3] SSH接続を試行中...
-ssh -i "%PEM_FILE%" -o ConnectTimeout=10 %SERVER% "echo 'SSH接続成功'" 2>nul
+echo タイムアウト: 10分
+ssh -i "%PEM_FILE%" -o ConnectTimeout=600 -o ServerAliveInterval=60 -o ServerAliveCountMax=10 %SERVER% "echo 'SSH接続成功'" 2>nul
 if errorlevel 1 (
     echo [!] SSH接続に失敗しました
     echo.

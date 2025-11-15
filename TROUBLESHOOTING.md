@@ -57,6 +57,34 @@ dir "C:\Users\skyto\ARE\tmhk-chat.pem"
 - AWSコンソールから鍵ペアを再ダウンロード
 - または新しい鍵ペアを作成してEC2インスタンスに関連付け
 
+#### 5. 接続診断
+
+**サーバーへのPing確認:**
+```bash
+ping 52.69.241.31
+```
+
+**ポート22の接続確認:**
+```bash
+# Windows (PowerShell)
+Test-NetConnection 52.69.241.31 -Port 22
+
+# Git Bash / Linux
+nc -zv 52.69.241.31 22
+# または
+telnet 52.69.241.31 22
+```
+
+**タイムアウトを延長してSSH接続:**
+```bash
+ssh -i "tmhk-chat.pem" -o ConnectTimeout=600 -o ServerAliveInterval=60 ubuntu@52.69.241.31
+```
+
+**詳細ログを確認:**
+```bash
+ssh -vvv -i "tmhk-chat.pem" ubuntu@52.69.241.31
+```
+
 ## デプロイエラー
 
 ### エラー: "git: command not found"
