@@ -17,7 +17,7 @@ module.exports = {
     {
       name: 'tmhk-chat',
       script: '/home/ubuntu/tmhk-chat-server/venv/bin/gunicorn',
-      args: '--workers 3 --bind unix:chat.sock -m 007 wsgi:app --timeout 120 --log-level info --access-logfile logs/access.log --error-logfile logs/error.log',
+      args: '--config gunicorn_config.py wsgi:app',
       cwd: '/home/ubuntu/tmhk-chat-server',
       interpreter: 'none', // Gunicornは既にPython実行ファイル
       
