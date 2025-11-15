@@ -33,14 +33,17 @@ jobs:
 
       - name: Run weather scraper
         run: python scraper2.py
+        continue-on-error: true
 
       - name: Commit and push if changed
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git pull --rebase --autostash
-          git add weather_info.json
-          [ -d archive/weather ] && git add archive/weather/ || true
+          git pull --rebase --autostash || git pull --no-rebase
+          git add weather_info.json 2>/dev/null || true
+          if [ -d archive/weather ] && [ "$(ls -A archive/weather 2>/dev/null)" ]; then
+            git add archive/weather/
+          fi
           if [[ -n $(git status --porcelain) ]]; then
             git commit -m "Update weather_info.json [bot]"
             git push
