@@ -1,21 +1,22 @@
 @echo off
+chcp 65001 >nul
 echo ========================================
-echo サーバー接続診断ツール
+echo Server Connection Diagnostic Tool
 echo ========================================
 echo.
 
 set SERVER_IP=52.69.241.31
 set PEM_FILE=tmhk-chat.pem
 
-echo [1/5] PEM鍵ファイルの確認...
+echo [1/5] Checking PEM key file...
 if exist "%PEM_FILE%" (
-    echo [OK] PEM鍵ファイルが見つかりました: %PEM_FILE%
+    echo [OK] PEM key file found: %PEM_FILE%
 ) else if exist "C:\Users\skyto\ARE\tmhk-chat.pem" (
-    echo [OK] PEM鍵ファイルが見つかりました: C:\Users\skyto\ARE\tmhk-chat.pem
+    echo [OK] PEM key file found: C:\Users\skyto\ARE\tmhk-chat.pem
     set PEM_FILE=C:\Users\skyto\ARE\tmhk-chat.pem
 ) else (
-    echo [!] PEM鍵ファイルが見つかりません
-    echo 以下の場所を確認してください:
+    echo [!] PEM key file not found
+    echo Please check these locations:
     echo - %CD%\tmhk-chat.pem
     echo - C:\Users\skyto\ARE\tmhk-chat.pem
     pause
@@ -23,80 +24,80 @@ if exist "%PEM_FILE%" (
 )
 echo.
 
-echo [2/5] サーバーへのPing確認...
+echo [2/5] Pinging server...
 ping -n 1 %SERVER_IP% >nul 2>&1
 if errorlevel 1 (
-    echo [!] サーバーに到達できません（Pingタイムアウト）
+    echo [!] Cannot reach server (Ping timeout)
     echo.
-    echo 考えられる原因:
-    echo - EC2インスタンスが停止している
-    echo - ネットワーク接続の問題
-    echo - セキュリティグループでICMPが許可されていない
+    echo Possible causes:
+    echo - EC2 instance is stopped
+    echo - Network connection issue
+    echo - Security group does not allow ICMP
     echo.
-    echo 次のステップ:
-    echo 1. AWSコンソールでEC2インスタンスの状態を確認
+    echo Next steps:
+    echo 1. Check EC2 instance status in AWS Console
     echo 2. https://console.aws.amazon.com/ec2/
 ) else (
-    echo [OK] サーバーに到達できます
+    echo [OK] Server is reachable
 )
 echo.
 
-echo [3/5] ポート22（SSH）の接続確認...
+echo [3/5] Checking port 22 (SSH)...
 powershell -Command "Test-NetConnection %SERVER_IP% -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue" >nul 2>&1
 if errorlevel 1 (
-    echo [!] ポート22に接続できません
+    echo [!] Cannot connect to port 22
     echo.
-    echo 考えられる原因:
-    echo - EC2インスタンスが停止している
-    echo - セキュリティグループでポート22が開放されていない
-    echo - ファイアウォールがSSHをブロックしている
+    echo Possible causes:
+    echo - EC2 instance is stopped
+    echo - Security group does not allow port 22
+    echo - Firewall is blocking SSH
     echo.
-    echo 確認事項:
-    echo 1. AWSコンソール → EC2 → セキュリティグループ
-    echo 2. インバウンドルール:
-    echo    - タイプ: SSH
-    echo    - ポート: 22
-    echo    - ソース: 0.0.0.0/0 または あなたのIP
+    echo Check:
+    echo 1. AWS Console -^> EC2 -^> Security Groups
+    echo 2. Inbound rules:
+    echo    - Type: SSH
+    echo    - Port: 22
+    echo    - Source: 0.0.0.0/0 or your IP
 ) else (
-    echo [OK] ポート22が開いています
+    echo [OK] Port 22 is open
 )
 echo.
 
-echo [4/5] ポート5000（アプリ）の接続確認...
+echo [4/5] Checking port 5000 (App)...
 powershell -Command "Test-NetConnection %SERVER_IP% -Port 5000 -InformationLevel Quiet -WarningAction SilentlyContinue" >nul 2>&1
 if errorlevel 1 (
-    echo [!] ポート5000に接続できません
-    echo （アプリが起動していない可能性があります）
+    echo [!] Cannot connect to port 5000
+    echo (App may not be running)
 ) else (
-    echo [OK] ポート5000が開いています
+    echo [OK] Port 5000 is open
 )
 echo.
 
-echo [5/5] SSH接続テスト（タイムアウト: 10分）...
-echo 接続を試行しています...
-ssh -i "%PEM_FILE%" -o ConnectTimeout=600 -o ServerAliveInterval=60 -o BatchMode=yes %SERVER_IP% "echo 'SSH接続成功'" 2>nul
+echo [5/5] Testing SSH connection (Timeout: 10 min)...
+echo Attempting connection...
+ssh -i "%PEM_FILE%" -o ConnectTimeout=600 -o ServerAliveInterval=60 -o BatchMode=yes ubuntu@%SERVER_IP% "echo 'SSH connection successful'" 2>nul
 if errorlevel 1 (
-    echo [!] SSH接続に失敗しました
+    echo [!] SSH connection failed
     echo.
-    echo 詳細ログを確認する場合:
+    echo For detailed logs:
     echo ssh -vvv -i "%PEM_FILE%" ubuntu@%SERVER_IP%
     echo.
-    echo 手動で接続する場合:
+    echo To connect manually:
     echo ssh -i "%PEM_FILE%" ubuntu@%SERVER_IP%
 ) else (
-    echo [OK] SSH接続成功！
+    echo [OK] SSH connection successful!
     echo.
-    echo サーバーは正常に動作しています。
-    echo デプロイを実行できます: DEPLOY_NOW.bat
+    echo Server is working properly.
+    echo You can deploy: DEPLOY_NOW.bat
 )
 echo.
 
 echo ========================================
-echo 診断完了
+echo Diagnostic Complete
 echo ========================================
 echo.
 
-echo AWSコンソールでEC2を確認:
+echo Check EC2 in AWS Console:
 echo https://console.aws.amazon.com/ec2/
 echo.
 
