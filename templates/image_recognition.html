@@ -193,9 +193,109 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* ハンバーガーメニュー */
+        #hamburger-menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 242, 254, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #hamburger-menu-btn:hover {
+            background: rgba(0, 242, 254, 0.3);
+            box-shadow: 0 0 20px #667eea;
+            transform: scale(1.1);
+        }
+        .hamburger-line {
+            width: 25px;
+            height: 3px;
+            background: #667eea;
+            border-radius: 2px;
+            transition: all 0.3s;
+            box-shadow: 0 0 5px #667eea;
+        }
+        #table-of-contents {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 300px;
+            height: 100vh;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 2px solid #667eea;
+            padding: 2rem;
+            z-index: 9998;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+        }
+        #table-of-contents.open {
+            left: 0;
+            box-shadow: 0 0 50px rgba(102, 126, 234, 0.3);
+        }
+        #table-of-contents h2 {
+            color: #667eea;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+        }
+        #table-of-contents ul {
+            list-style: none;
+            padding: 0;
+        }
+        #table-of-contents li {
+            margin: 1rem 0;
+        }
+        #table-of-contents a {
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        #table-of-contents a:hover {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            transform: translateX(5px);
+        }
     </style>
 </head>
 <body>
+    <!-- ハンバーガーメニュー -->
+    <button id="hamburger-menu-btn" aria-label="メニュー">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+    </button>
+
+    <!-- サイドメニュー -->
+    <aside id="table-of-contents">
+        <h2 class="arechat-logo">AREChat</h2>
+        <ul>
+            <li><a href="/chat">💬 AIチャット</a></li>
+            <li><a href="/chat_room">💬 チャットルーム</a></li>
+            <li><a href="/features">✨ 機能一覧</a></li>
+            <li><a href="/weather">🌤️ 天気情報</a></li>
+            <li><a href="/train">🚃 電車情報</a></li>
+            <li><a href="/games.html">🎮 ゲームセンター</a></li>
+            <li><a href="/logout">🔒 ログアウト</a></li>
+        </ul>
+    </aside>
+
     <div class="container">
         <h1>🤖 画像認識AI</h1>
         
@@ -311,6 +411,19 @@
         customInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 submitCustomInput();
+            }
+        });
+
+        // ハンバーガーメニュー
+        document.getElementById('hamburger-menu-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('table-of-contents').classList.toggle('open');
+        });
+
+        document.body.addEventListener('click', (e) => {
+            const toc = document.getElementById('table-of-contents');
+            if (toc.classList.contains('open') && !toc.contains(e.target)) {
+                toc.classList.remove('open');
             }
         });
     </script>
