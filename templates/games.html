@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>AREChat - ゲームポータル</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AReChatゲームセンター。あみだくじ、大富豪、神経衰弱、ババ抜きなど楽しいゲームが満載。">
+    <link rel="stylesheet" href="static/arechat-futuristic.css">
+    <link rel="stylesheet" href="static/games.css">
+    <link rel="manifest" href="static/manifest.json">
+    <style>
+        .game-portal {
+            padding: 2rem 0;
+        }
+        
+        .portal-header {
+            text-align: center;
+            margin-bottom: 4rem;
+            padding: 3rem;
+            background: rgba(26, 31, 58, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            border: 2px solid var(--arechat-primary);
+        }
+        
+        .portal-title {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: var(--gradient-cyber);
+            -webkit-background: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+        
+        .portal-subtitle {
+            font-size: 1.3rem;
+            color: rgba(240, 244, 255, 0.8);
+            margin-bottom: 0.5rem;
+        }
+        
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2.5rem;
+            margin: 3rem 0;
+        }
+        
+        .game-card {
+            background: rgba(26, 31, 58, 0.85);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            border: 2px solid rgba(0, 242, 254, 0.3);
+            padding: 2.5rem;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 242, 254, 0.15), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        
+        .game-card:hover::before {
+            opacity: 1;
+            animation: rotate 15s linear infinite;
+        }
+        
+        @keyframes rotate {
+            to { transform: rotate(360deg); }
+        }
+        
+        .game-card:hover {
+            border-color: var(--arechat-primary);
+            box-shadow: 0 15px 40px rgba(0, 242, 254, 0.5);
+            transform: translateY(-15px) scale(1.03);
+        }
+        
+        .game-icon {
+            font-size: 5rem;
+            margin-bottom: 1.5rem;
+            filter: drop-shadow(0 0 15px rgba(0, 242, 254, 0.5));
+        }
+        
+        .game-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--arechat-primary);
+            margin-bottom: 1rem;
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+        }
+        
+        .game-description {
+            color: rgba(240, 244, 255, 0.85);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+            font-size: 1.05rem;
+        }
+        
+        .game-meta {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(0, 242, 254, 0.2);
+        }
+        
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .meta-label {
+            font-size: 0.85rem;
+            color: rgba(240, 244, 255, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .meta-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--arechat-primary);
+        }
+        
+        .stats-section {
+            background: rgba(10, 14, 39, 0.6);
+            border-radius: 20px;
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            padding: 2rem;
+            margin: 3rem 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+        
+        .stat-box {
+            background: rgba(0, 242, 254, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid rgba(0, 242, 254, 0.2);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: var(--gradient-cyber);
+            -webkit-background: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: rgba(240, 244, 255, 0.7);
+            font-size: 0.95rem;
+        }
+        
+        /* ハンバーガーメニュー */
+        #hamburger-menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 242, 254, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--arechat-primary);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #hamburger-menu-btn:hover {
+            background: rgba(0, 242, 254, 0.3);
+            box-shadow: 0 0 20px var(--arechat-primary);
+            transform: scale(1.1);
+        }
+        
+        .hamburger-line {
+            width: 25px;
+            height: 3px;
+            background: var(--arechat-primary);
+            border-radius: 2px;
+            transition: all 0.3s;
+            box-shadow: 0 0 5px var(--arechat-primary);
+        }
+        
+        #table-of-contents {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 300px;
+            height: 100vh;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 2px solid var(--arechat-primary);
+            padding: 2rem;
+            z-index: 9998;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        #table-of-contents.open {
+            left: 0;
+            box-shadow: 0 0 50px rgba(0, 242, 254, 0.3);
+        }
+        
+        #table-of-contents h2 {
+            color: var(--arechat-primary);
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+        }
+        
+        #table-of-contents ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        #table-of-contents li {
+            margin: 1rem 0;
+        }
+        
+        #table-of-contents a {
+            color: var(--arechat-light);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        #table-of-contents a:hover {
+            background: rgba(0, 242, 254, 0.2);
+            color: var(--arechat-primary);
+            transform: translateX(5px);
+        }
+        
+        @media (max-width: 768px) {
+            .portal-title {
+                font-size: 2rem;
+            }
+            
+            .game-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- パーティクルエフェクト -->
+    <div class="arechat-particles">
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+    </div>
+
+    <!-- ハンバーガーメニュー -->
+    <button id="hamburger-menu-btn" aria-label="メニュー">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+    </button>
+
+    <!-- サイドメニュー -->
+    <aside id="table-of-contents">
+        <h2 class="arechat-logo">AREChat</h2>
+        <ul>
+            <li><a href="home.html">🏠 ホーム</a></li>
+            <li><a href="index2.html">🧠 AIクイズ</a></li>
+            <li><a href="index5.html">📖 マニュアル</a></li>
+            <li><a href="アンケート.html">📊 アンケート</a></li>
+            <li><a href="logout.html">🔒 ログアウト</a></li>
+            <li><a href="link.html">📑 全リンク</a></li>
+            <li><a href="hate.html">🎯 苦手克服</a></li>
+            <li><a href="hate/base.html">📚 用語集</a></li>
+            <li><a href="https://docs.python.org/ja/3/" target="_blank">🐍 Python公式</a></li>
+            <li><a href="https://www.w3schools.com/sql/" target="_blank">🗄️ SQLチュートリアル</a></li>
+            <li><a href="pythonexam.html">📝 Python試験</a></li>
+            <li><a href="感想.html">✍️ 試験感想</a></li>
+            <li><a href="https://www.rakuten.co.jp/kbsanhe/" target="_blank">🛒 楽天</a></li>
+            <li><a href="weather.html">🌤️ 天気情報</a></li>
+            <li><a href="train.html">🚃 電車情報</a></li>
+            <li><a href="games.html">🎮 ゲームセンター</a></li>
+            <li><a href="other.html">🔗 その他</a></li>
+            <li><a href="index3.html">💬 チャット</a></li>
+            <li><a href="index4.html">🔗 便利リンク</a></li>
+            <li><a href="story.html">📖 物語</a></li>
+        </ul>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <div class="arechat-container game-portal">
+        <div class="portal-header">
+            <h1 class="portal-title">🎮 AREChat ゲームセンター</h1>
+            <p class="portal-subtitle">2035年型AI統合ゲームプラットフォーム</p>
+            <p class="arechat-text">最先端技術で楽しむ次世代カードゲーム体験</p>
+        </div>
+
+        <!-- 統計セクション -->
+        <div class="stats-section">
+            <h2 class="arechat-title">📊 プラットフォーム統計</h2>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-number">4</div>
+                    <div class="stat-label">利用可能なゲーム</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">1-6</div>
+                    <div class="stat-label">対応人数</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">レスポンシブ対応</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">∞</div>
+                    <div class="stat-label">無限の楽しみ</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ゲーム一覧 -->
+        <h2 class="arechat-title">🎯 ゲーム一覧</h2>
+        <div class="game-grid">
+            <!-- あみだくじ -->
+            <div class="game-card" onclick="window.location.href='game_amidakuji.html'">
+                <div class="game-icon">🎪</div>
+                <h3 class="game-title">あみだくじ</h3>
+                <p class="game-description">
+                    シンプルで公平な抽選ゲーム。参加者と景品を設定して、AI が自動生成した縦線と横線で運命を決定します。
+                </p>
+                <div class="game-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">プレイヤー</span>
+                        <span class="meta-value">2-10人</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">難易度</span>
+                        <span class="meta-value">⭐</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">平均時間</span>
+                        <span class="meta-value">3-5分</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 大富豪 -->
+            <div class="game-card" onclick="window.location.href='game_daifugo.html'">
+                <div class="game-icon">🃏</div>
+                <h3 class="game-title">大富豪</h3>
+                <p class="game-description">
+                    日本で最も人気のカードゲーム。革命ルールや縛りルールなど、戦略性の高いゲームプレイを楽しめます。
+                </p>
+                <div class="game-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">プレイヤー</span>
+                        <span class="meta-value">3-5人</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">難易度</span>
+                        <span class="meta-value">⭐⭐⭐⭐</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">平均時間</span>
+                        <span class="meta-value">10-20分</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 神経衰弱 -->
+            <div class="game-card" onclick="window.location.href='game_memory.html'">
+                <div class="game-icon">🧠</div>
+                <h3 class="game-title">神経衰弱</h3>
+                <p class="game-description">
+                    記憶力を試すクラシックなゲーム。複数のテーマと難易度設定で、子供から大人まで楽しめます。
+                </p>
+                <div class="game-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">プレイヤー</span>
+                        <span class="meta-value">1-4人</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">難易度</span>
+                        <span class="meta-value">⭐⭐⭐</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">平均時間</span>
+                        <span class="meta-value">5-15分</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ババ抜き -->
+            <div class="game-card" onclick="window.location.href='game_oldmaid.html'">
+                <div class="game-icon">🎴</div>
+                <h3 class="game-title">ババ抜き</h3>
+                <p class="game-description">
+                    運と心理戦が絡み合う伝統的なカードゲーム。最後までジョーカーを持たないように戦略的にプレイしましょう。
+                </p>
+                <div class="game-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">プレイヤー</span>
+                        <span class="meta-value">3-6人</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">難易度</span>
+                        <span class="meta-value">⭐⭐</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">平均時間</span>
+                        <span class="meta-value">5-10分</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- フッター情報 -->
+        <div class="stats-section" style="margin-top: 4rem;">
+            <h3 class="arechat-title">🌟 特徴</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+                <div class="arechat-card">
+                    <h4 style="color: var(--arechat-primary); margin-bottom: 0.5rem;">🎨 2035年デザイン</h4>
+                    <p class="arechat-text">最先端のUI/UXで未来的なゲーム体験</p>
+                </div>
+                <div class="arechat-card">
+                    <h4 style="color: var(--arechat-primary); margin-bottom: 0.5rem;">📱 完全レスポンシブ</h4>
+                    <p class="arechat-text">スマホ・タブレット・PC全対応</p>
+                </div>
+                <div class="arechat-card">
+                    <h4 style="color: var(--arechat-primary); margin-bottom: 0.5rem;">🤖 賢いCPU</h4>
+                    <p class="arechat-text">難易度調整可能なAI対戦相手</p>
+                </div>
+                <div class="arechat-card">
+                    <h4 style="color: var(--arechat-primary); margin-bottom: 0.5rem;">⚡ 高速動作</h4>
+                    <p class="arechat-text">最適化されたパフォーマンス</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ハンバーガーメニュー
+        document.getElementById('hamburger-menu-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('table-of-contents').classList.toggle('open');
+        });
+
+        document.body.addEventListener('click', (e) => {
+            const toc = document.getElementById('table-of-contents');
+            if (toc.classList.contains('open') && !toc.contains(e.target)) {
+                toc.classList.remove('open');
+            }
+        });
+    </script>
+</body>
+</html>

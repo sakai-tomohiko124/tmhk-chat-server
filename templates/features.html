@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TMchat - 機能一覧</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/features.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+</head>
+<body>
+    <div class="features-container">
+        <!-- ヘッダー -->
+        <header class="features-header">
+            <h1 id="header-title">機能一覧</h1>
+            <nav class="header-nav">
+                <a href="{{ url_for('chat') }}">チャットに戻る</a>
+                <a href="{{ url_for('index') }}">ログアウト</a>
+            </nav>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="features-main">
+            <!-- タブナビゲーション -->
+            <nav class="tab-navigation">
+                <button class="tab-button active" data-tab="communication">コミュニケーション</button>
+                <button class="tab-button" data-tab="ai">AI機能</button>
+                <button class="tab-button" data-tab="media">メディア</button>
+                <button class="tab-button" data-tab="games">ゲーム</button>
+                <button class="tab-button" data-tab="productivity">生産性</button>
+                <button class="tab-button" data-tab="integration">外部連携</button>
+            </nav>
+
+            <!-- タブコンテンツ -->
+            <div class="tab-content active" id="communication">
+                <h2>コミュニケーション機能</h2>
+                <div class="feature-grid">
+                    <!-- 音声通話 -->
+                    <div class="feature-card" data-feature="audio-call">
+                        <i class="bi bi-telephone"></i>
+                        <h3>音声通話</h3>
+                        <p>クリアな音声で通話</p>
+                    </div>
+                    
+                    <!-- ビデオ通話 -->
+                    <div class="feature-card" data-feature="group-video-call">
+                        <i class="bi bi-camera-video"></i>
+                        <h3>ビデオ通話</h3>
+                        <p>顔を見ながら会話</p>
+                    </div>
+                    
+                    <!-- グループ音声通話 -->
+                    <div class="feature-card" data-feature="group-audio-call">
+                        <i class="bi bi-people"></i>
+                        <h3>グループ通話</h3>
+                        <p>複数人での音声通話</p>
+                    </div>
+                    
+                    <!-- 通話録音 -->
+                    <div class="feature-card" data-feature="call-recording">
+                        <i class="bi bi-record-circle"></i>
+                        <h3>通話録音</h3>
+                        <p>重要な会話を記録</p>
+                    </div>
+                    
+                    <!-- 通話履歴 -->
+                    <div class="feature-card" data-feature="call-history">
+                        <i class="bi bi-clock-history"></i>
+                        <h3>通話履歴</h3>
+                        <p>過去の通話を確認</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="ai">
+                <h2>AI機能</h2>
+                <div class="feature-grid">
+                    <!-- AIチャットボット -->
+                    <div class="feature-card" data-feature="ai-chatbot">
+                        <i class="bi bi-robot"></i>
+                        <h3>AIチャット</h3>
+                        <p>AIアシスタントと会話</p>
+                    </div>
+                    
+                    <!-- 自動翻訳 -->
+                    <div class="feature-card" data-feature="auto-translate">
+                        <i class="bi bi-translate"></i>
+                        <h3>自動翻訳</h3>
+                        <p>リアルタイム翻訳</p>
+                    </div>
+                    
+                    <!-- 感情分析 -->
+                    <div class="feature-card" data-feature="emotion-analysis">
+                        <i class="bi bi-emoji-smile"></i>
+                        <h3>感情分析</h3>
+                        <p>テキストから感情を分析</p>
+                    </div>
+                    
+                    <!-- 画像認識 -->
+                    <div class="feature-card" data-feature="image-recognition">
+                        <i class="bi bi-image"></i>
+                        <h3>画像認識</h3>
+                        <p>画像の内容を識別</p>
+                    </div>
+                    
+                    <!-- キーワード抽出 -->
+                    <div class="feature-card" data-feature="keyword-extractor">
+                        <i class="bi bi-key"></i>
+                        <h3>キーワード抽出</h3>
+                        <p>重要なキーワードを抽出</p>
+                    </div>
+                    
+                    <!-- 自動分類 -->
+                    <div class="feature-card" data-feature="auto-classifier">
+                        <i class="bi bi-folder"></i>
+                        <h3>自動分類</h3>
+                        <p>コンテンツを自動分類</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="media">
+                <h2>メディア機能</h2>
+                <div class="feature-grid">
+                    <!-- 画像送受信 -->
+                    <div class="feature-card" data-feature="image-sender">
+                        <i class="bi bi-card-image"></i>
+                        <h3>画像送信</h3>
+                        <p>写真を共有</p>
+                    </div>
+                    
+                    <!-- GIF対応 -->
+                    <div class="feature-card" data-feature="gif-support">
+                        <i class="bi bi-file-earmark-play"></i>
+                        <h3>GIF対応</h3>
+                        <p>アニメーション画像</p>
+                    </div>
+                    
+                    <!-- ファイル共有 -->
+                    <div class="feature-card" data-feature="file-sharing">
+                        <i class="bi bi-file-earmark-arrow-up"></i>
+                        <h3>ファイル共有</h3>
+                        <p>様々なファイルを共有</p>
+                    </div>
+                    
+                    <!-- アルバム作成 -->
+                    <div class="feature-card" data-feature="album-creator">
+                        <i class="bi bi-collection"></i>
+                        <h3>アルバム作成</h3>
+                        <p>写真をまとめて管理</p>
+                    </div>
+                    
+                    <!-- 美肌フィルター -->
+                    <div class="feature-card" data-feature="beautify-filter">
+                        <i class="bi bi-magic"></i>
+                        <h3>美肌フィルター</h3>
+                        <p>写真を美しく加工</p>
+                    </div>
+                    
+                    <!-- メディア自動保存 -->
+                    <div class="feature-card" data-feature="media-auto-save">
+                        <i class="bi bi-save"></i>
+                        <h3>自動保存</h3>
+                        <p>メディアを自動保存</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="games">
+                <h2>ゲーム</h2>
+                <div class="feature-grid">
+                    <!-- ミニゲーム -->
+                    <div class="feature-card" data-feature="mini-game">
+                        <i class="bi bi-controller"></i>
+                        <h3>ミニゲーム</h3>
+                        <p>楽しいミニゲーム</p>
+                    </div>
+                    
+                    <!-- クイズ -->
+                    <div class="feature-card" data-feature="quiz-game">
+                        <i class="bi bi-question-circle"></i>
+                        <h3>クイズゲーム</h3>
+                        <p>知識を試そう</p>
+                    </div>
+                    
+                    <!-- 絵文字クイズ -->
+                    <div class="feature-card" data-feature="emoji-quiz">
+                        <i class="bi bi-emoji-laughing"></i>
+                        <h3>絵文字クイズ</h3>
+                        <p>絵文字で遊ぶ</p>
+                    </div>
+                    
+                    <!-- 数字当てゲーム -->
+                    <div class="feature-card" data-feature="number-guessing">
+                        <i class="bi bi-123"></i>
+                        <h3>数字当て</h3>
+                        <p>数字を推理</p>
+                    </div>
+                    
+                    <!-- 協力ゲーム -->
+                    <div class="feature-card" data-feature="cooperative-game">
+                        <i class="bi bi-people-fill"></i>
+                        <h3>協力ゲーム</h3>
+                        <p>みんなで協力</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="productivity">
+                <h2>生産性ツール</h2>
+                <div class="feature-grid">
+                    <!-- プロジェクト管理 -->
+                    <div class="feature-card" data-feature="project-management">
+                        <i class="bi bi-kanban"></i>
+                        <h3>プロジェクト管理</h3>
+                        <p>タスクを効率管理</p>
+                    </div>
+                    
+                    <!-- 文書管理 -->
+                    <div class="feature-card" data-feature="document-management">
+                        <i class="bi bi-file-text"></i>
+                        <h3>文書管理</h3>
+                        <p>ドキュメントを整理</p>
+                    </div>
+                    
+                    <!-- カレンダー統合 -->
+                    <div class="feature-card" data-feature="calendar-integration">
+                        <i class="bi bi-calendar"></i>
+                        <h3>カレンダー</h3>
+                        <p>スケジュール管理</p>
+                    </div>
+                    
+                    <!-- 会議室予約 -->
+                    <div class="feature-card" data-feature="meeting-room">
+                        <i class="bi bi-door-open"></i>
+                        <h3>会議室予約</h3>
+                        <p>会議室を予約</p>
+                    </div>
+                    
+                    <!-- 出勤管理 -->
+                    <div class="feature-card" data-feature="attendance">
+                        <i class="bi bi-clock"></i>
+                        <h3>出勤管理</h3>
+                        <p>勤怠を記録</p>
+                    </div>
+                    
+                    <!-- 経費精算 -->
+                    <div class="feature-card" data-feature="expense-management">
+                        <i class="bi bi-cash"></i>
+                        <h3>経費精算</h3>
+                        <p>経費を管理</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="integration">
+                <h2>外部連携</h2>
+                <div class="feature-grid">
+                    <!-- Gmail連携 -->
+                    <div class="feature-card" data-feature="gmail-integration">
+                        <i class="bi bi-envelope"></i>
+                        <h3>Gmail連携</h3>
+                        <p>メールをチェック</p>
+                    </div>
+                    
+                    <!-- YouTube連携 -->
+                    <div class="feature-card" data-feature="youtube-integration">
+                        <i class="bi bi-youtube"></i>
+                        <h3>YouTube検索</h3>
+                        <p>動画を検索</p>
+                    </div>
+                    
+                    <!-- QRコード生成 -->
+                    <div class="feature-card" data-feature="qr-code">
+                        <i class="bi bi-qr-code"></i>
+                        <h3>QRコード</h3>
+                        <p>コードを生成</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- フィーチャーモーダル -->
+        <div id="feature-modal" class="modal">
+            <div class="modal-content">
+                <span class="modal-close">&times;</span>
+                <div id="feature-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/features.js') }}"></script>
+</body>
+</html>

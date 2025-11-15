@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プロフィール - AREChat</title>
+    <link rel="stylesheet" href="/static/arechat-futuristic.css">
+    <link rel="stylesheet" href="/static/profile.css">
+</head>
+<body>
+    <div class="profile-container">
+        <div class="profile-header">
+            <div class="cover-image-wrapper">
+                <img id="coverImage" src="/static/uploads/default_bg.png" alt="カバー画像">
+                <button class="edit-cover-btn" onclick="selectCoverImage()">📷</button>
+            </div>
+            
+            <div class="avatar-wrapper">
+                <img id="avatarImage" src="/static/uploads/default_avatar.png" alt="アバター">
+                <button class="edit-avatar-btn" onclick="selectAvatarImage()">📷</button>
+            </div>
+        </div>
+
+        <div class="profile-body">
+            <h2 id="username">ユーザー名</h2>
+            <p class="status-message" id="statusMessage">ステータスメッセージ</p>
+            
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <span class="stat-value" id="friendCount">0</span>
+                    <span class="stat-label">友達</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="roomCount">0</span>
+                    <span class="stat-label">グループ</span>
+                </div>
+            </div>
+
+            <div class="profile-info">
+                <h3>プロフィール情報</h3>
+                <div class="info-item">
+                    <label>自己紹介</label>
+                    <p id="bio">自己紹介文がありません</p>
+                </div>
+                <div class="info-item">
+                    <label>誕生日</label>
+                    <p id="birthday">未設定</p>
+                </div>
+                <div class="info-item">
+                    <label>メールアドレス</label>
+                    <p id="email">未設定</p>
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                <button class="btn btn-primary" onclick="editProfile()">プロフィールを編集</button>
+                <button class="btn btn-outline" onclick="showPrivacySettings()">プライバシー設定</button>
+                <button class="btn btn-outline" onclick="shareLocation()">位置情報を共有</button>
+            </div>
+        </div>
+
+        <!-- プロフィール編集モーダル -->
+        <div class="modal" id="editModal" style="display: none;">
+            <div class="modal-content">
+                <h3>プロフィールを編集</h3>
+                <form id="editForm">
+                    <div class="form-group">
+                        <label>ユーザー名</label>
+                        <input type="text" id="editUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ステータスメッセージ</label>
+                        <input type="text" id="editStatusMessage">
+                    </div>
+                    <div class="form-group">
+                        <label>自己紹介</label>
+                        <textarea id="editBio" rows="4"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>誕生日</label>
+                        <input type="date" id="editBirthday">
+                    </div>
+                    <div class="form-group">
+                        <label>メールアドレス</label>
+                        <input type="email" id="editEmail">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">キャンセル</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- プライバシー設定モーダル -->
+        <div class="modal" id="privacyModal" style="display: none;">
+            <div class="modal-content">
+                <h3>プライバシー設定</h3>
+                <div class="privacy-options">
+                    <div class="privacy-item">
+                        <label>タイピング状態を表示</label>
+                        <input type="checkbox" id="showTyping">
+                    </div>
+                    <div class="privacy-item">
+                        <label>オンラインステータスを表示</label>
+                        <input type="checkbox" id="showOnlineStatus">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closePrivacyModal()">閉じる</button>
+                    <button class="btn btn-primary" onclick="savePrivacySettings()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="uploadAvatar(this)">
+    <input type="file" id="coverInput" accept="image/*" style="display: none;" onchange="uploadCover(this)">
+
+    <script src="/static/profile.js"></script>
+</body>
+</html>

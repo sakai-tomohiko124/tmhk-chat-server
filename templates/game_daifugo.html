@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>AREChat - 大富豪</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/arechat-futuristic.css">
+    <link rel="stylesheet" href="static/games.css">
+    <script src="static/daifugo.js"></script>
+    <style>
+        .no-cards {
+            color: rgba(240, 244, 255, 0.5);
+            font-style: italic;
+            padding: 2rem;
+        }
+        
+        .players-area {
+            margin-top: 2rem;
+        }
+        
+        .player-hand {
+            background: rgba(26, 31, 58, 0.6);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .play-controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+        
+        .field-info {
+            margin-top: 1rem;
+            color: rgba(240, 244, 255, 0.7);
+            text-align: center;
+        }
+        
+        .player-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .player-cards-count {
+            color: var(--arechat-primary);
+            font-size: 0.9rem;
+        }
+        
+        .player-rank {
+            color: #2ecc71;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .other-players {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- パーティクルエフェクト -->
+    <div class="arechat-particles">
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="arechat-container game-container">
+        <!-- ヘッダー -->
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <h1 class="arechat-logo">🃏 AREChat 大富豪</h1>
+            <p class="arechat-text" style="font-size: 1.2rem;">戦略と運が交錯する日本の伝統カードゲーム</p>
+            <a href="games.html" class="btn btn-outline" style="margin-top: 1rem;">← ゲーム一覧に戻る</a>
+        </div>
+
+        <!-- ゲームコンテナ -->
+        <div id="daifugo-container"></div>
+    </div>
+
+    <script>
+        let daifugoGame;
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            daifugoGame = new DaifugoGame();
+            daifugoGame.initialize('daifugo-container');
+        });
+    </script>
+</body>
+</html>

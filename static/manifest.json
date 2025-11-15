@@ -1,0 +1,117 @@
+{
+  "name": "AREChat - 次世代チャット&ゲームプラットフォーム",
+  "short_name": "AREChat",
+  "description": "2035年型AI統合チャット・天気・鉄道・ゲームプラットフォーム",
+  "start_url": "/home.html",
+  "display": "standalone",
+  "background_color": "#0a0e27",
+  "theme_color": "#00f2fe",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "ja-JP",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/static/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "天気予報",
+      "short_name": "天気",
+      "description": "AI気象予報を確認",
+      "url": "/weather.html",
+      "icons": [{ "src": "/static/icons/shortcut-weather.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "鉄道運行情報",
+      "short_name": "電車",
+      "description": "リアルタイム運行状況",
+      "url": "/train.html",
+      "icons": [{ "src": "/static/icons/shortcut-train.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "ゲームセンター",
+      "short_name": "ゲーム",
+      "description": "カードゲームで遊ぶ",
+      "url": "/games.html",
+      "icons": [{ "src": "/static/icons/shortcut-game.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "チャット",
+      "short_name": "チャット",
+      "description": "AIチャットを開始",
+      "url": "/index3.html",
+      "icons": [{ "src": "/static/icons/shortcut-chat.png", "sizes": "96x96" }]
+    }
+  ],
+  "categories": ["social", "communication", "entertainment", "games", "utilities"],
+  "screenshots": [
+    {
+      "src": "/static/screenshots/home.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "ホーム画面"
+    },
+    {
+      "src": "/static/screenshots/weather.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "天気予報画面"
+    },
+    {
+      "src": "/static/screenshots/games.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "ゲームセンター"
+    }
+  ]
+}

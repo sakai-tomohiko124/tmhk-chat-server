@@ -1,0 +1,49 @@
+name: Scrape Train Info
+
+on:
+  schedule:
+    # 毎日0時、6時、12時、18時（JST）に自動実行
+    - cron: '0 15 * * *'  # 0時 JST (UTC 15:00)
+    - cron: '0 21 * * *'  # 6時 JST (UTC 21:00)
+    - cron: '0 3 * * *'   # 12時 JST (UTC 3:00)
+    - cron: '0 9 * * *'   # 18時 JST (UTC 9:00)
+  # 手動でも実行できるようにする
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        # BeautifulSoupをインストールするために lxml を追加
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Run train scraper
+        # 実行するスクリプト名を指定
+        run: python scrape_train.py
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git pull --rebase --autostash
+          git add train_info.json archive/train/
+          if [[ -n $(git status --porcelain) ]]; then
+            git commit -m "Update train_info.json [bot]"
+            git push
+          else
+            echo "No changes to commit."
+          fi

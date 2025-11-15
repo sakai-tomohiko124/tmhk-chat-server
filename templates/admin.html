@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理者パネル</title>
+    <style>
+        /* ページ全体の基本的なスタイル */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            background-attachment: fixed;
+            max-width: 1200px; /* 少し広めの最大幅 */
+            margin: auto;
+            padding: 20px;
+            color: #fff;
+        }
+
+        h1, h2, h3 { color: #fff; margin-top: 0; }
+
+        a { color: #fff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* コンテナのレイアウト設定 */
+        .container { display: flex; gap: 24px; margin-top: 20px; align-items: flex-start; }
+
+        /* サイドバー（ユーザーリスト）のスタイル */
+        .sidebar { width: 280px; flex-shrink: 0; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; padding: 20px; }
+
+        /* メインコンテンツエリアのスタイル */
+        .main-content { flex-grow: 1; min-width: 0; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; padding: 20px; }
+
+        /* フォーム要素の共通スタイル */
+        select, input[type="text"], button { padding: 8px 12px; font-size: 14px; margin-top: 5px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; box-sizing: border-box; background: rgba(0,0,0,0.2); color: #fff; }
+
+        button { cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-color: rgba(255, 255, 255, 0.3); }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+        button:focus-visible { outline: 3px solid rgba(0,123,255,0.25); outline-offset: 2px; }
+
+        /* ユーザー選択のプルダウン */
+        select[name="user"] { width: 100%; }
+
+        /* メッセージ履歴テーブルのスタイル（横スクロール対応） */
+        .table-wrap { width: 100%; overflow-x: auto; margin-top: 16px; }
+        .messages-table { width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); box-shadow: 0 2px 4px rgba(0,0,0,0.06); min-width: 700px; border-radius: 10px; overflow: hidden; }
+        .messages-table th, .messages-table td { border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px; text-align: left; vertical-align: top; }
+        .messages-table th { background: rgba(255, 255, 255, 0.2); }
+        .messages-table td { word-break: break-word; }
+        .messages-table tr:nth-child(even) { background: rgba(255, 255, 255, 0.05); }
+
+        /* 編集・削除・招待アクションエリアのスタイル */
+        .actions { border: 1px solid rgba(255, 255, 255, 0.2); padding: 14px; margin-top: 16px; border-radius: 8px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
+        .actions h3 { margin-top: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 8px; margin-bottom: 12px; }
+        .actions-delete { border-color: rgba(255, 0, 0, 0.3); }
+        .actions-delete button { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%); border-color: rgba(255, 0, 0, 0.3); }
+        .actions-delete button:hover { background: linear-gradient(135deg, #ee5a52 0%, #dc4545 100%); }
+
+        /* FlaskのFlashメッセージのスタイル */
+        .flash { padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid transparent; }
+        .flash.success { background: rgba(0, 255, 0, 0.2); color: #ccffcc; border-color: rgba(0, 255, 0, 0.3); }
+        .flash.error { background: rgba(255, 0, 0, 0.2); color: #ffcccc; border-color: rgba(255, 0, 0, 0.3); }
+
+        /* 招待リンクセクションのスタイル */
+        .invite-section { display: flex; gap: 10px; align-items: center; }
+        .invite-section input { flex-grow: 1; margin-top: 0; }
+        .invite-section button { margin-top: 0; }
+
+        /* 小さなスクリーン用（レスポンシブ） */
+        @media (max-width: 900px) {
+            body { max-width: 100%; padding: 10px; }
+            .container { flex-direction: column; gap: 12px; }
+            .sidebar { width: 100%; }
+            .main-content { width: 100%; }
+            .messages-table { min-width: 600px; }
+        }
+
+        @media (max-width: 480px) {
+            button, input[type="text"], select { font-size: 14px; padding: 10px; }
+            .messages-table th, .messages-table td { padding: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>管理者パネル</h1>
+    <p><a href="{{ url_for('chat') }}">&larr; チャットに戻る</a></p>
+
+    <div class="actions">
+        <h3>管理者招待リンク</h3>
+        <div class="invite-section">
+            <!-- 管理者自身のユーザー名で招待リンクを生成 -->
+            <input type="text" value="{{ url_for('index', invite=username, _external=True) }}" id="admin-invite-link-input" readonly>
+            <button id="copy-admin-invite-link-btn">リンクをコピー</button>
+        </div>
+    </div>
+
+    <!-- Flaskのflashメッセージを表示するエリア -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="container">
+        <div class="sidebar">
+            <h2>ユーザーリスト</h2>
+            <form method="GET" action="{{ url_for('admin_panel') }}">
+                <!-- プルダウンの値が変更されたら、自動的にフォームを送信する -->
+                <select name="user" onchange="this.form.submit()">
+                    <option value="">-- ユーザーを選択 --</option>
+                    {% for user in users %}
+                        <!-- 選択中のユーザーであれば selected 属性を付与する -->
+                        <option value="{{ user.username }}" {% if user.username == selected_user %}selected{% endif %}>
+                            {{ user.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <div class="main-content">
+            <!-- URLクエリに ?user=... が指定されている場合のみ表示 -->
+            {% if selected_user %}
+                <h2>「{{ selected_user }}」さんの情報</h2>
+                
+                <!-- ユーザー編集フォーム -->
+                <div class="actions">
+                    <h3>ユーザー名編集</h3>
+                    <form action="{{ url_for('edit_user') }}" method="POST" style="display: flex; gap: 10px;">
+                        <input type="hidden" name="old_username" value="{{ selected_user }}">
+                        <input type="text" name="new_username" placeholder="新しい名前を入力" required>
+                        <button type="submit">名前を更新</button>
+                    </form>
+                </div>
+
+                <!-- ユーザー削除フォーム -->
+                <div class="actions actions-delete">
+                    <h3>アカウント削除</h3>
+                    <!-- フォーム送信時に確認ダイアログを表示する -->
+                    <form action="{{ url_for('delete_user') }}" method="POST" onsubmit="return confirm('本当に「{{ selected_user }}」さんの全メッセージとアカウントを削除しますか？\nこの操作は取り消せません。');">
+                        <input type="hidden" name="username" value="{{ selected_user }}">
+                        <button type="submit">このユーザーと全メッセージを削除</button>
+                    </form>
+                </div>
+                
+                <h3>メッセージ履歴 (グループチャット & DM)</h3>
+                {% if messages %}
+                <div class="table-wrap">
+                <table class="messages-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 150px;">日時</th>
+                            <th style="width: 180px;">ルーム</th>
+                            <th style="width: 120px;">投稿者</th>
+                            <th>内容</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for msg in messages %}
+                        <tr>
+                            <td>{{ msg.timestamp }}</td>
+                            <td>{{ msg.room }}</td>
+                            <td>{{ msg.username }}</td>
+                            <td>
+                                {% if msg.message %}
+                                    {{ msg.message }}
+                                {% elif msg.file_path %}
+                                    <!-- ファイルの種類(大文字)とファイル名を表示するリンク -->
+                                    <a href="{{ url_for('uploaded_file', filename=msg.file_path) }}" target="_blank">
+                                        [{{ msg.file_type|upper }}ファイル: {{ msg.file_path }}]
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% else %}
+                <p>このユーザーに関連するメッセージはありません。</p>
+                {% endif %}
+
+            {% else %}
+                <p>左のリストからユーザーを選択して、メッセージ履歴の閲覧や編集・削除を行ってください。</p>
+            {% endif %}
+        </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 管理者ページの招待リンクコピー機能
+        const copyBtn = document.getElementById('copy-admin-invite-link-btn');
+        const inviteLinkInput = document.getElementById('admin-invite-link-input');
+        
+        if(copyBtn && inviteLinkInput) {
+            copyBtn.addEventListener('click', function() {
+                inviteLinkInput.select();
+                navigator.clipboard.writeText(inviteLinkInput.value).then(function() {
+                    copyBtn.textContent = 'コピーしました！';
+                    // announce via aria-live region
+                    let live = document.getElementById('admin-copy-live');
+                    if (!live) { live = document.createElement('div'); live.id = 'admin-copy-live'; live.setAttribute('aria-live','polite'); live.style.position='absolute'; live.style.left='-9999px'; document.body.appendChild(live); }
+                    live.textContent = '招待リンクをコピーしました';
+                    setTimeout(function() { copyBtn.textContent = 'リンクをコピー'; live.textContent = ''; }, 2000);
+                }, function(err) {
+                    console.error('クリップボードへのコピーに失敗しました: ', err);
+                });
+            });
+        }
+    });
+</script>
+
+</body>
+</html>

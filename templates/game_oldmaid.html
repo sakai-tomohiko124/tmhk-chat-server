@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>AREChat - ババ抜き</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/arechat-futuristic.css">
+    <link rel="stylesheet" href="static/games.css">
+    <script src="static/oldmaid.js"></script>
+    <style>
+        .game-area {
+            display: grid;
+            gap: 2rem;
+        }
+        
+        .center-area {
+            display: grid;
+            gap: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+        
+        .discard-pile {
+            background: rgba(26, 31, 58, 0.6);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 2px dashed rgba(0, 242, 254, 0.3);
+        }
+        
+        .pile-label {
+            color: var(--arechat-primary);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .discarded-pairs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            min-height: 100px;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .discarded-card {
+            background: white;
+            border-radius: 6px;
+            padding: 0.5rem;
+            min-width: 40px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            animation: cardDeal 0.3s ease;
+        }
+        
+        .discarded-card.red {
+            color: #e74c3c;
+        }
+        
+        .current-action {
+            background: rgba(26, 31, 58, 0.6);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .action-message {
+            color: var(--arechat-primary);
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .player-info {
+            color: rgba(240, 244, 255, 0.7);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .player-card {
+            background: white;
+            border-radius: 6px;
+            padding: 0.4rem;
+            min-width: 35px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 700;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .player-card.old-maid {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+            color: white;
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.6);
+            animation: oldMaidPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes oldMaidPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .game-log-panel {
+            background: rgba(10, 14, 39, 0.5);
+            border-radius: 16px;
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .game-log-panel h3 {
+            color: var(--arechat-primary);
+            margin-bottom: 1rem;
+        }
+        
+        .log-content {
+            max-height: 250px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .log-time {
+            color: rgba(240, 244, 255, 0.5);
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+        }
+        
+        .log-message {
+            color: rgba(240, 244, 255, 0.8);
+        }
+        
+        .winner-announcement {
+            text-align: center;
+            padding: 2rem;
+            margin: 1.5rem 0;
+        }
+        
+        .winner-announcement h4 {
+            font-size: 2rem;
+            background: var(--gradient-cyber);
+            -webkit-background: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        
+        .rankings-list {
+            margin-top: 1.5rem;
+        }
+        
+        .rank-number {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--arechat-primary);
+            min-width: 50px;
+        }
+        
+        .pairs-count {
+            color: rgba(240, 244, 255, 0.7);
+        }
+        
+        .old-maid-holder {
+            background: rgba(231, 76, 60, 0.3);
+            color: #ff6b6b;
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        
+        .rank-item.loser {
+            background: rgba(231, 76, 60, 0.1);
+            border-color: rgba(231, 76, 60, 0.5);
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .center-area {
+                grid-template-columns: 1fr;
+            }
+            
+            .players-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- パーティクルエフェクト -->
+    <div class="arechat-particles">
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+        <div class="arechat-particle"></div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="arechat-container game-container">
+        <!-- ヘッダー -->
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <h1 class="arechat-logo">🎴 AREChat ババ抜き</h1>
+            <p class="arechat-text" style="font-size: 1.2rem;">運と心理戦が絡み合う伝統カードゲーム</p>
+            <a href="games.html" class="btn btn-outline" style="margin-top: 1rem;">← ゲーム一覧に戻る</a>
+        </div>
+
+        <!-- ゲームコンテナ -->
+        <div id="oldmaid-container"></div>
+    </div>
+
+    <script>
+        let oldmaidGame;
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            oldmaidGame = new OldMaidGame();
+            oldmaidGame.initialize('oldmaid-container');
+        });
+    </script>
+</body>
+</html>
