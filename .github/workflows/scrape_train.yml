@@ -40,7 +40,8 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git pull --rebase --autostash
-          git add train_info.json archive/train/
+          git add train_info.json
+          [ -d archive/train ] && git add archive/train/ || true
           if [[ -n $(git status --porcelain) ]]; then
             git commit -m "Update train_info.json [bot]"
             git push

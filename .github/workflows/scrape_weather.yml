@@ -38,7 +38,8 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git pull --rebase --autostash
-          git add weather_info.json archive/weather/
+          git add weather_info.json
+          [ -d archive/weather ] && git add archive/weather/ || true
           if [[ -n $(git status --porcelain) ]]; then
             git commit -m "Update weather_info.json [bot]"
             git push
