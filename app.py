@@ -741,6 +741,46 @@ def train_page():
         return redirect(url_for('index'))
     return render_template('train.html')
 
+@app.route('/games.html')
+def games_page():
+    """ゲーム一覧ページ"""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('index'))
+    return render_template('games.html')
+
+@app.route('/game_amidakuji.html')
+def game_amidakuji():
+    """あみだくじゲーム"""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('index'))
+    return render_template('game_amidakuji.html')
+
+@app.route('/game_daifugo.html')
+def game_daifugo():
+    """大富豪ゲーム"""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('index'))
+    return render_template('game_daifugo.html')
+
+@app.route('/game_memory.html')
+def game_memory():
+    """神経衰弱ゲーム"""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('index'))
+    return render_template('game_memory.html')
+
+@app.route('/game_oldmaid.html')
+def game_oldmaid():
+    """ババ抜きゲーム"""
+    username = session.get('username')
+    if not username:
+        return redirect(url_for('index'))
+    return render_template('game_oldmaid.html')
+
 @app.route('/download_document', methods=['POST'])
 def download_document():
     """ドキュメント作成してダウンロード"""
