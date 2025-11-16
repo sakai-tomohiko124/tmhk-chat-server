@@ -16,7 +16,10 @@ from functools import wraps
 import base64
 import uuid
 import shutil
-from openai import OpenAI
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 import json
 import random
 
@@ -56,7 +59,7 @@ REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
 # OpenAI APIクライアントの初期化
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if (OPENAI_API_KEY and OpenAI) else None
 
 # Google AI API設定（既存機能との互換性維持）
 import google.generativeai as genai
