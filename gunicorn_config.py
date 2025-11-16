@@ -1,7 +1,8 @@
 # Gunicorn Configuration File
 
-# Server socket
-bind = "0.0.0.0:5000"
+# Server socket (use UNIX domain socket for Nginx proxy)
+# Absolute path to avoid cwd issues
+bind = "/home/ubuntu/tmhk-chat-server/chat.sock"
 
 # Worker processes
 workers = 2  # Reduced from 3 to save memory
@@ -26,9 +27,10 @@ proc_name = "tmhk-chat-server"
 # Server mechanics
 daemon = False
 pidfile = None
-umask = 0
-user = None
-group = None
+# Ensure socket permissions: user ubuntu, group www-data, mask 007
+umask = 0o007
+user = "ubuntu"
+group = "www-data"
 tmp_upload_dir = None
 preload_app = True  # Preload app to save memory across workers
 
