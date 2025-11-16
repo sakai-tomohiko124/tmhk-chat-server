@@ -5,9 +5,9 @@
 bind = "/home/ubuntu/tmhk-chat-server/chat.sock"
 
 # Worker processes
-workers = 2  # Reduced from 3 to save memory
-worker_class = "sync"
-worker_connections = 100  # Limit concurrent connections per worker
+workers = 2  # Keep lightweight
+worker_class = "eventlet"  # For Flask-SocketIO/WebSocket support
+# worker_connections is not used with eventlet
 max_requests = 1000  # Restart workers after 1000 requests to prevent memory leaks
 max_requests_jitter = 50  # Add jitter to prevent all workers restarting simultaneously
 
