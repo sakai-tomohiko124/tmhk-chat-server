@@ -71,17 +71,14 @@ if GOOGLE_API_KEY:
 try:
     from services.ai_bot import AIBot
     from services.rtc_signaling import RTCSignalingServer
-    from services.external_data import ExternalDataService, periodic_data_update
     
     # サービスの初期化
     ai_bot = AIBot() if GOOGLE_API_KEY else None
     rtc_server = RTCSignalingServer()
-    external_data_service = ExternalDataService()
 except ImportError as e:
     print(f"Warning: Could not import services: {e}")
     ai_bot = None
     rtc_server = None
-    external_data_service = None
 
 # Redisに接続
 try:
@@ -145,7 +142,7 @@ def close_connection(exception):
 def init_db():
     with app.app_context():
         db = get_db()
-        with app.open_resource('data.sql', mode='r', encoding='utf-8') as f:
+        with app.open_resource('data_new.sql', mode='r', encoding='utf-8') as f:
             db.cursor().executescript(f.read())
         db.commit()
 
@@ -700,89 +697,7 @@ def features():
         return redirect(url_for('index'))
     return render_template('features.html')
 
-@app.route('/api/weather')
-def api_weather():
-    """天気予報データをJSON形式で返す"""
-    try:
-        weather_file = os.path.join(os.path.dirname(__file__), 'weather_info.json')
-        if os.path.exists(weather_file):
-            with open(weather_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            return jsonify(data)
-        else:
-            return jsonify({'error': '天気予報データが見つかりません'}), 404
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/train')
-def api_train():
-    """鉄道運行情報データをJSON形式で返す"""
-    try:
-        train_file = os.path.join(os.path.dirname(__file__), 'train_info.json')
-        if os.path.exists(train_file):
-            with open(train_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            return jsonify(data)
-        else:
-            return jsonify({'error': '鉄道運行情報データが見つかりません'}), 404
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/weather')
-def weather_page():
-    """天気予報ページ"""
-    username = session.get('username')
-    if not username:
-        return redirect(url_for('index'))
-    return render_template('weather.html')
-
-@app.route('/train')
-def train_page():
-    """鉄道運行情報ページ"""
-    username = session.get('username')
-    if not username:
-        return redirect(url_for('index'))
-    return render_template('train.html')
-
-@app.route('/games.html')
-def games_page():
-    """ゲーム一覧ページ"""
-    username = session.get('username')
-    if not username:
-        return redirect(url_for('index'))
-    return render_template('games.html')
-
-@app.route('/game_amidakuji.html')
-def game_amidakuji():
-    """あみだくじゲーム"""
-    username = session.get('username')
-    if not username:
-        return redirect(url_for('index'))
-    return render_template('game_amidakuji.html')
-
-@app.route('/game_daifugo.html')
-def game_daifugo():
-    """大富豪ゲーム"""
-    username = session.get('username')
-    if not username:
-        return redirect(url_for('index'))
-    return render_template('game_daifugo.html')
-
-@app.route('/game_memory.html')
-def game_memory():
-    """神経衰弱ゲーム"""
-    username = session.get('username')
-    if not username:
-        return redirect(url_for('index'))
-    return render_template('game_memory.html')
-
-@app.route('/game_oldmaid.html')
-def game_oldmaid():
-    """ババ抜きゲーム"""
-    username = session.get('username')
-    if not username:
-        return redirect(url_for('index'))
-    return render_template('game_oldmaid.html')
 
 @app.route('/download_document', methods=['POST'])
 def download_document():
@@ -1627,52 +1542,7 @@ def handle_call_response(data):
     if rtc_server:
         rtc_server.handle_call_response(data)
 
-# --- External Data API ---
-@app.route('/api/external/weather')
-def get_weather():
-    """天気予報APIエンドポイント"""
-    if not external_data_service:
-        return jsonify({'error': 'External data service not available'}), 503
-    
-    import asyncio
-    area_code = request.args.get('area', '130000')
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        result = loop.run_until_complete(external_data_service.get_weather_forecast(area_code))
-        return jsonify(result)
-    finally:
-        loop.close()
 
-@app.route('/api/external/trains')
-def get_trains():
-    """電車運行情報APIエンドポイント"""
-    if not external_data_service:
-        return jsonify({'error': 'External data service not available'}), 503
-    
-    import asyncio
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        result = loop.run_until_complete(external_data_service.get_train_status())
-        return jsonify(result)
-    finally:
-        loop.close()
-
-@app.route('/api/external/alerts')
-def get_alerts():
-    """災害情報APIエンドポイント"""
-    if not external_data_service:
-        return jsonify({'error': 'External data service not available'}), 503
-    
-    import asyncio
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        result = loop.run_until_complete(external_data_service.get_disaster_alerts())
-        return jsonify(result)
-    finally:
-        loop.close()
 
 # --- 新規追加: プロフィールAPI ---
 @app.route('/api/profile/<int:user_id>')
@@ -1959,7 +1829,7 @@ if __name__ == '__main__':
                 db = get_db()
                 db.execute("SELECT 1 FROM messages LIMIT 1").fetchone()
             except sqlite3.OperationalError:
-                print("Database not initialized. Running init_db() to create tables from data.sql...")
+                print("Database not initialized. Running init_db() to create tables from data_new.sql...")
                 init_db()
         # disable reloader here to avoid double-start issues
         socketio.run(app, debug=True, use_reloader=False)
