@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>チャット - AREChat</title>
+    <link rel="stylesheet" href="/static/arechat-futuristic.css">
+    <link rel="stylesheet" href="/static/chat.css">
+    <style>
+        /* ハンバーガーメニュー */
+        #hamburger-menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 242, 254, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #hamburger-menu-btn:hover {
+            background: rgba(0, 242, 254, 0.3);
+            box-shadow: 0 0 20px #667eea;
+            transform: scale(1.1);
+        }
+        .hamburger-line {
+            width: 25px;
+            height: 3px;
+            background: #667eea;
+            border-radius: 2px;
+            transition: all 0.3s;
+            box-shadow: 0 0 5px #667eea;
+        }
+        #table-of-contents {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 300px;
+            height: 100vh;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 2px solid #667eea;
+            padding: 2rem;
+            z-index: 9998;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+        }
+        #table-of-contents.open {
+            left: 0;
+            box-shadow: 0 0 50px rgba(102, 126, 234, 0.3);
+        }
+        #table-of-contents h2 {
+            color: #667eea;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+        }
+        #table-of-contents ul {
+            list-style: none;
+            padding: 0;
+        }
+        #table-of-contents li {
+            margin: 1rem 0;
+        }
+        #table-of-contents a {
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        #table-of-contents a:hover {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            transform: translateX(5px);
+        }
+    </style>
+</head>
+<body>
+    <!-- ハンバーガーメニュー -->
+    <button id="hamburger-menu-btn" aria-label="メニュー">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+    </button>
+
+    <!-- サイドメニュー -->
+    <aside id="table-of-contents">
+        <h2 class="arechat-logo">AREChat</h2>
+        <ul>
+            <li><a href="/chat">💬 AIチャット</a></li>
+            <li><a href="/chat_room">💬 チャットルーム</a></li>
+            <li><a href="/features">✨ 機能一覧</a></li>
+            <li><a href="/weather">🌤️ 天気情報</a></li>
+            <li><a href="/train">🚃 電車情報</a></li>
+            <li><a href="/games.html">🎮 ゲームセンター</a></li>
+            <li><a href="/logout">🔒 ログアウト</a></li>
+        </ul>
+    </aside>
+
+    <div class="chat-container">
+        <!-- ヘッダー -->
+        <div class="chat-header">
+            <button class="back-btn" onclick="history.back()">←</button>
+            <div class="chat-title">
+                <span id="chatRoomName">チャットルーム</span>
+                <span class="online-status" id="onlineStatus">オンライン</span>
+            </div>
+            <button class="menu-btn" onclick="toggleChatMenu()">⋮</button>
+        </div>
+
+        <!-- メッセージエリア -->
+        <div class="messages-area" id="messagesArea">
+            <!-- メッセージがここに表示されます -->
+        </div>
+
+        <!-- タイピングインジケーター -->
+        <div class="typing-indicator" id="typingIndicator" style="display: none;">
+            <span class="typing-text"></span>
+        </div>
+
+        <!-- 入力エリア -->
+        <div class="input-area">
+            <button class="attachment-btn" onclick="showAttachmentMenu()">📎</button>
+            <textarea 
+                id="messageInput" 
+                placeholder="メッセージを入力..." 
+                rows="1"
+                onkeydown="handleKeyPress(event)"
+                oninput="handleTyping()"
+            ></textarea>
+            <button class="send-btn" onclick="sendMessage()">送信</button>
+        </div>
+
+        <!-- 添付メニュー -->
+        <div class="attachment-menu" id="attachmentMenu" style="display: none;">
+            <button onclick="selectImage()">📷 画像</button>
+            <button onclick="selectFile()">📄 ファイル</button>
+            <button onclick="showStampPicker()">😀 スタンプ</button>
+        </div>
+
+        <!-- スタンプピッカー -->
+        <div class="stamp-picker modal" id="stampPicker" style="display: none;">
+            <div class="modal-content">
+                <h3>スタンプを選択</h3>
+                <div class="stamp-categories" id="stampCategories"></div>
+                <div class="stamp-grid" id="stampGrid"></div>
+                <button onclick="closeStampPicker()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="uploadImage(this)">
+    <input type="file" id="fileInput" style="display: none;" onchange="uploadFile(this)">
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/chat.js"></script>
+    <script>
+        // ハンバーガーメニュー
+        document.getElementById('hamburger-menu-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('table-of-contents').classList.toggle('open');
+        });
+
+        document.body.addEventListener('click', (e) => {
+            const toc = document.getElementById('table-of-contents');
+            if (toc.classList.contains('open') && !toc.contains(e.target)) {
+                toc.classList.remove('open');
+            }
+        });
+    </script>
+</body>
+</html>

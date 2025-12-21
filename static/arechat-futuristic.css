@@ -1,0 +1,489 @@
+/* 
+ * AREChat - 2035年風超絶モダンデザイン
+ * 全画面対応（スマホ、タブレット、PC）
+ * 最先端技術アピール用スタイルシート
+ */
+
+:root {
+    /* 2035年カラーパレット */
+    --arechat-primary: #00f2fe;
+    --arechat-secondary: #ae00ff;
+    --arechat-accent: #ff3d00;
+    --arechat-glow: #00ffea;
+    --arechat-dark: #0a0e27;
+    --arechat-darker: #050814;
+    --arechat-light: #f0f4ff;
+    
+    /* グラデーション */
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    --gradient-cyber: linear-gradient(135deg, #00f2fe 0%, #4facfe 30%, #00f2fe 60%, #ae00ff 100%);
+    --gradient-neon: radial-gradient(circle at 50% 50%, #00f2fe, #ae00ff, #ff3d00);
+    --gradient-hologram: linear-gradient(45deg, rgba(0,242,254,0.1) 0%, rgba(174,0,255,0.1) 50%, rgba(255,61,0,0.1) 100%);
+}
+
+/* === 全画面背景アニメーション === */
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--arechat-darker);
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* 動的グラデーション背景 */
+body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: 
+        radial-gradient(circle at 20% 80%, rgba(0, 242, 254, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(174, 0, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(255, 61, 0, 0.1) 0%, transparent 40%),
+        linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0a0e27 100%);
+    animation: gradientShift 20s ease infinite;
+    z-index: -2;
+}
+
+@keyframes gradientShift {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(-5%, -5%) rotate(90deg); }
+    50% { transform: translate(-10%, 5%) rotate(180deg); }
+    75% { transform: translate(-5%, -10%) rotate(270deg); }
+}
+
+/* ホログラムグリッド */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(0deg, transparent 24%, rgba(0, 242, 254, 0.03) 25%, rgba(0, 242, 254, 0.03) 26%, transparent 27%, transparent 74%, rgba(0, 242, 254, 0.03) 75%, rgba(0, 242, 254, 0.03) 76%, transparent 77%, transparent),
+        linear-gradient(90deg, transparent 24%, rgba(0, 242, 254, 0.03) 25%, rgba(0, 242, 254, 0.03) 26%, transparent 27%, transparent 74%, rgba(0, 242, 254, 0.03) 75%, rgba(0, 242, 254, 0.03) 76%, transparent 77%, transparent);
+    background-size: 50px 50px;
+    pointer-events: none;
+    z-index: -1;
+    animation: gridPulse 4s ease-in-out infinite;
+}
+
+@keyframes gridPulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+}
+
+/* フローティングパーティクル */
+.arechat-particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.arechat-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--arechat-glow);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--arechat-glow);
+    opacity: 0;
+    animation: particleFloat 15s infinite;
+}
+
+.arechat-particle:nth-child(1) { left: 10%; animation-delay: 0s; }
+.arechat-particle:nth-child(2) { left: 20%; animation-delay: 2s; }
+.arechat-particle:nth-child(3) { left: 30%; animation-delay: 4s; }
+.arechat-particle:nth-child(4) { left: 40%; animation-delay: 6s; }
+.arechat-particle:nth-child(5) { left: 50%; animation-delay: 8s; }
+.arechat-particle:nth-child(6) { left: 60%; animation-delay: 10s; }
+.arechat-particle:nth-child(7) { left: 70%; animation-delay: 12s; }
+.arechat-particle:nth-child(8) { left: 80%; animation-delay: 14s; }
+.arechat-particle:nth-child(9) { left: 90%; animation-delay: 1s; }
+.arechat-particle:nth-child(10) { left: 95%; animation-delay: 3s; }
+
+@keyframes particleFloat {
+    0% {
+        transform: translateY(100vh) scale(0);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) scale(1);
+        opacity: 0;
+    }
+}
+
+/* === AReChatコンテナ === */
+.arechat-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: rgba(10, 14, 39, 0.6);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 24px;
+    border: 1px solid rgba(0, 242, 254, 0.2);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 0 80px rgba(0, 242, 254, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* ホログラムエフェクト */
+.arechat-container::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: var(--gradient-cyber);
+    border-radius: 24px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+    animation: borderGlow 3s ease-in-out infinite;
+}
+
+.arechat-container:hover::before {
+    opacity: 0.3;
+}
+
+@keyframes borderGlow {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.3; }
+}
+
+/* === AReChatロゴ === */
+.arechat-logo {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 900;
+    background: var(--gradient-cyber);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    letter-spacing: 0.05em;
+    position: relative;
+    display: inline-block;
+    animation: logoGlow 2s ease-in-out infinite;
+}
+
+.arechat-logo::after {
+    content: 'AREChat';
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: -1;
+    filter: blur(20px);
+    opacity: 0.5;
+}
+
+@keyframes logoGlow {
+    0%, 100% { 
+        filter: drop-shadow(0 0 20px rgba(0, 242, 254, 0.5));
+    }
+    50% { 
+        filter: drop-shadow(0 0 40px rgba(174, 0, 255, 0.8));
+    }
+}
+
+/* === ネオンボタン === */
+.arechat-btn {
+    padding: 0.8rem 2rem;
+    background: transparent;
+    border: 2px solid var(--arechat-primary);
+    border-radius: 50px;
+    color: var(--arechat-primary);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.arechat-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: var(--arechat-primary);
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s;
+}
+
+.arechat-btn:hover {
+    color: var(--arechat-dark);
+    box-shadow: 
+        0 0 20px var(--arechat-primary),
+        inset 0 0 20px var(--arechat-primary);
+    transform: translateY(-2px);
+}
+
+.arechat-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.arechat-btn span {
+    position: relative;
+    z-index: 1;
+}
+
+/* === カード === */
+.arechat-card {
+    background: rgba(26, 31, 58, 0.8);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(0, 242, 254, 0.3);
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.arechat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 242, 254, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.arechat-card:hover {
+    border-color: var(--arechat-primary);
+    box-shadow: 
+        0 8px 24px rgba(0, 242, 254, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transform: translateY(-4px);
+}
+
+.arechat-card:hover::before {
+    left: 100%;
+}
+
+/* === テキストスタイル === */
+.arechat-title {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    font-weight: 800;
+    color: var(--arechat-light);
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.arechat-title::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: var(--gradient-cyber);
+    border-radius: 2px;
+}
+
+.arechat-text {
+    color: rgba(240, 244, 255, 0.8);
+    line-height: 1.6;
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+}
+
+/* === レスポンシブ対応 === */
+/* スマホ (320px - 767px) */
+@media (max-width: 767px) {
+    .arechat-container {
+        padding: 1rem;
+        border-radius: 16px;
+        margin: 1rem;
+    }
+    
+    body::after {
+        background-size: 30px 30px;
+    }
+    
+    .arechat-logo {
+        font-size: 2rem;
+    }
+    
+    .arechat-btn {
+        padding: 0.6rem 1.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .arechat-card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+}
+
+/* タブレット (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .arechat-container {
+        max-width: 90%;
+        padding: 1.5rem;
+    }
+    
+    .arechat-logo {
+        font-size: 2.5rem;
+    }
+}
+
+/* PC (1024px以上) */
+@media (min-width: 1024px) {
+    .arechat-container {
+        max-width: 1400px;
+        padding: 2.5rem;
+    }
+    
+    body::after {
+        background-size: 60px 60px;
+    }
+}
+
+/* 大画面 (1920px以上) */
+@media (min-width: 1920px) {
+    .arechat-container {
+        max-width: 1600px;
+    }
+}
+
+/* === スクロールバーカスタマイズ === */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--arechat-darker);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--gradient-cyber);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--arechat-primary);
+    box-shadow: 0 0 10px var(--arechat-primary);
+}
+
+/* === アクセシビリティ === */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* === ダークモード対応 === */
+@media (prefers-color-scheme: light) {
+    body {
+        background: linear-gradient(135deg, #f0f4ff 0%, #d9e4ff 100%);
+    }
+    
+    .arechat-container {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(0, 242, 254, 0.3);
+    }
+    
+    .arechat-text {
+        color: rgba(10, 14, 39, 0.8);
+    }
+}
+
+/* === ローディングアニメーション === */
+.arechat-loading {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(0, 242, 254, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--arechat-primary);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* === ステータスインジケーター === */
+.arechat-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 242, 254, 0.1);
+    border-radius: 20px;
+    border: 1px solid rgba(0, 242, 254, 0.3);
+}
+
+.arechat-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--arechat-primary);
+    box-shadow: 0 0 10px var(--arechat-primary);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+/* === グラスモーフィズム効果 === */
+.arechat-glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* === ホバーエフェクト === */
+.arechat-hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.arechat-hover-lift:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(0, 242, 254, 0.3);
+}
+
+/* === テキストグロー === */
+.arechat-glow-text {
+    color: var(--arechat-primary);
+    text-shadow: 
+        0 0 10px rgba(0, 242, 254, 0.5),
+        0 0 20px rgba(0, 242, 254, 0.3),
+        0 0 30px rgba(0, 242, 254, 0.2);
+}

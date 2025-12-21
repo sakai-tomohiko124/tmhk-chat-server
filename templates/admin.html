@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理者パネル - TMHK Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1.1em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .users-table th,
+        .users-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .users-table th {
+            background: rgba(255, 255, 255, 0.1);
+            font-weight: bold;
+        }
+
+        .users-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .badge-admin {
+            background: #667eea;
+            color: white;
+        }
+
+        .badge-active {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .badge-inactive {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .badge-infected {
+            background: #e74c3c;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin-right: 5px;
+        }
+
+        .btn-edit {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        .btn-infect {
+            background: #e67e22;
+            color: white;
+        }
+
+        .btn-infect:hover {
+            background: #d35400;
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            font-size: 1em;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(15, 12, 41, 0.95);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #999;
+            cursor: pointer;
+        }
+
+        .close-modal:hover {
+            color: #fff;
+        }
+
+        .flash {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .flash.success {
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid rgba(46, 204, 113, 0.5);
+            color: #2ecc71;
+        }
+
+        .flash.error {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            color: #e74c3c;
+        }
+
+        .online-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .online-indicator.online {
+            background: #2ecc71;
+            box-shadow: 0 0 10px #2ecc71;
+        }
+
+        .online-indicator.offline {
+            background: #95a5a6;
+        }
+
+        /* ハンバーガーメニュー */
+        #hamburger-menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 242, 254, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #hamburger-menu-btn:hover {
+            background: rgba(0, 242, 254, 0.3);
+            box-shadow: 0 0 20px #667eea;
+            transform: scale(1.1);
+        }
+        .hamburger-line {
+            width: 25px;
+            height: 3px;
+            background: #667eea;
+            border-radius: 2px;
+            transition: all 0.3s;
+            box-shadow: 0 0 5px #667eea;
+        }
+        #table-of-contents {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 300px;
+            height: 100vh;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 2px solid #667eea;
+            padding: 2rem;
+            z-index: 9998;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+        }
+        #table-of-contents.open {
+            left: 0;
+            box-shadow: 0 0 50px rgba(102, 126, 234, 0.3);
+        }
+        #table-of-contents h2 {
+            color: #667eea;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+        }
+        #table-of-contents ul {
+            list-style: none;
+            padding: 0;
+        }
+        #table-of-contents li {
+            margin: 1rem 0;
+        }
+        #table-of-contents a {
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        #table-of-contents a:hover {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            transform: translateX(5px);
+        }
+    </style>
+</head>
+<body>
+    <!-- ハンバーガーメニュー -->
+    <button id="hamburger-menu-btn" aria-label="メニュー">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+    </button>
+
+    <!-- サイドメニュー -->
+    <aside id="table-of-contents">
+        <h2 class="arechat-logo">AREChat</h2>
+        <ul>
+            <li><a href="/chat">💬 AIチャット</a></li>
+            <li><a href="/chat_room">💬 チャットルーム</a></li>
+            <li><a href="/features">✨ 機能一覧</a></li>
+            <li><a href="/weather">🌤️ 天気情報</a></li>
+            <li><a href="/train">🚃 電車情報</a></li>
+            <li><a href="/games.html">🎮 ゲームセンター</a></li>
+            <li><a href="/admin">🛡️ 管理者パネル</a></li>
+            <li><a href="/logout">🔒 ログアウト</a></li>
+        </ul>
+    </aside>
+
+    <div class="container">
+        <h1>🛡️ 管理者パネル</h1>
+        <a href="/chat" class="back-link">← AIチャットに戻る</a>
+      {% endif %}
+    {% endwith %}
+
+    <div class="container">
+        <div class="sidebar">
+            <h2>ユーザーリスト</h2>
+            <form method="GET" action="{{ url_for('admin_panel') }}">
+                <!-- プルダウンの値が変更されたら、自動的にフォームを送信する -->
+                <select name="user" onchange="this.form.submit()">
+                    <option value="">-- ユーザーを選択 --</option>
+                    {% for user in users %}
+                        <!-- 選択中のユーザーであれば selected 属性を付与する -->
+                        <option value="{{ user.username }}" {% if user.username == selected_user %}selected{% endif %}>
+                            {{ user.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <div class="main-content">
+            <!-- URLクエリに ?user=... が指定されている場合のみ表示 -->
+            {% if selected_user %}
+                <h2>「{{ selected_user }}」さんの情報</h2>
+                
+                <!-- ユーザー編集フォーム -->
+                <div class="actions">
+                    <h3>ユーザー名編集</h3>
+                    <form action="{{ url_for('edit_user') }}" method="POST" style="display: flex; gap: 10px;">
+                        <input type="hidden" name="old_username" value="{{ selected_user }}">
+                        <input type="text" name="new_username" placeholder="新しい名前を入力" required>
+                        <button type="submit">名前を更新</button>
+                    </form>
+                </div>
+
+                <!-- ユーザー削除フォーム -->
+                <div class="actions actions-delete">
+                    <h3>アカウント削除</h3>
+                    <!-- フォーム送信時に確認ダイアログを表示する -->
+                    <form action="{{ url_for('delete_user') }}" method="POST" onsubmit="return confirm('本当に「{{ selected_user }}」さんの全メッセージとアカウントを削除しますか？\nこの操作は取り消せません。');">
+                        <input type="hidden" name="username" value="{{ selected_user }}">
+                        <button type="submit">このユーザーと全メッセージを削除</button>
+                    </form>
+                </div>
+                
+                <h3>メッセージ履歴 (グループチャット & DM)</h3>
+                {% if messages %}
+                <div class="table-wrap">
+                <table class="messages-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 150px;">日時</th>
+                            <th style="width: 180px;">ルーム</th>
+                            <th style="width: 120px;">投稿者</th>
+                            <th>内容</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for msg in messages %}
+                        <tr>
+                            <td>{{ msg.timestamp }}</td>
+                            <td>{{ msg.room }}</td>
+                            <td>{{ msg.username }}</td>
+                            <td>
+                                {% if msg.message %}
+                                    {{ msg.message }}
+                                {% elif msg.file_path %}
+                                    <!-- ファイルの種類(大文字)とファイル名を表示するリンク -->
+                                    <a href="{{ url_for('uploaded_file', filename=msg.file_path) }}" target="_blank">
+                                        [{{ msg.file_type|upper }}ファイル: {{ msg.file_path }}]
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% else %}
+                <p>このユーザーに関連するメッセージはありません。</p>
+                {% endif %}
+
+            {% else %}
+                <p>左のリストからユーザーを選択して、メッセージ履歴の閲覧や編集・削除を行ってください。</p>
+            {% endif %}
+        </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 管理者ページの招待リンクコピー機能
+        const copyBtn = document.getElementById('copy-admin-invite-link-btn');
+        const inviteLinkInput = document.getElementById('admin-invite-link-input');
+        
+        if(copyBtn && inviteLinkInput) {
+            copyBtn.addEventListener('click', function() {
+                inviteLinkInput.select();
+                navigator.clipboard.writeText(inviteLinkInput.value).then(function() {
+                    copyBtn.textContent = 'コピーしました！';
+                    // announce via aria-live region
+                    let live = document.getElementById('admin-copy-live');
+                    if (!live) { live = document.createElement('div'); live.id = 'admin-copy-live'; live.setAttribute('aria-live','polite'); live.style.position='absolute'; live.style.left='-9999px'; document.body.appendChild(live); }
+                    live.textContent = '招待リンクをコピーしました';
+                    setTimeout(function() { copyBtn.textContent = 'リンクをコピー'; live.textContent = ''; }, 2000);
+                }, function(err) {
+                    console.error('クリップボードへのコピーに失敗しました: ', err);
+                });
+            });
+        }
+
+        // ハンバーガーメニュー
+        document.getElementById('hamburger-menu-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('table-of-contents').classList.toggle('open');
+        });
+
+        document.body.addEventListener('click', (e) => {
+            const toc = document.getElementById('table-of-contents');
+            if (toc.classList.contains('open') && !toc.contains(e.target)) {
+                toc.classList.remove('open');
+            }
+        });
+    });
+</script>
+
+    <script src="/static/security_monitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIアシスタント</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px 20px 0 0;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .nav-btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        .doc-btn {
+            background: #3498db;
+        }
+
+        .doc-btn:hover {
+            background: #2980b9;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .username {
+            color: #333;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        /* ドキュメント作成モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+            margin: 0;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #999;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-modal:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 200px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .chat-area {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 70%;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.ai {
+            align-self: flex-start;
+        }
+
+        .message-bubble {
+            padding: 15px 20px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.ai .message-bubble {
+            background: white;
+            color: #333;
+            border: 2px solid #667eea;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .message.user .message-label {
+            text-align: right;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            padding: 15px 20px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 20px;
+            border-bottom-left-radius: 5px;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .input-area {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 0 0 20px 20px;
+            padding: 20px 30px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        #messageInput:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        #sendBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #sendBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #sendBtn:active {
+            transform: translateY(0);
+        }
+
+        #sendBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .welcome-message h2 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        /* レスポンシブデザイン */
+        /* ハンバーガーメニュー */
+        #hamburger-menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 242, 254, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #hamburger-menu-btn:hover {
+            background: rgba(0, 242, 254, 0.3);
+            box-shadow: 0 0 20px #667eea;
+            transform: scale(1.1);
+        }
+        
+        .hamburger-line {
+            width: 25px;
+            height: 3px;
+            background: #667eea;
+            border-radius: 2px;
+            transition: all 0.3s;
+            box-shadow: 0 0 5px #667eea;
+        }
+        
+        #table-of-contents {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 300px;
+            height: 100vh;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 2px solid #667eea;
+            padding: 2rem;
+            z-index: 9998;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        #table-of-contents.open {
+            left: 0;
+            box-shadow: 0 0 50px rgba(102, 126, 234, 0.3);
+        }
+        
+        #table-of-contents h2 {
+            color: #667eea;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+        }
+        
+        #table-of-contents ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        #table-of-contents li {
+            margin: 1rem 0;
+        }
+        
+        #table-of-contents a {
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        #table-of-contents a:hover {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            transform: translateX(5px);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 15px 20px;
+                border-radius: 15px 15px 0 0;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .messages {
+                padding: 20px 15px;
+            }
+
+            .message {
+                max-width: 85%;
+            }
+
+            .input-area {
+                padding: 15px 20px;
+                border-radius: 0 0 15px 15px;
+            }
+
+            #messageInput {
+                font-size: 14px;
+                padding: 12px 15px;
+            }
+
+            #sendBtn {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+        }
+
+        /* スクロールバーのスタイル */
+        .messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .messages::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        .messages::-webkit-scrollbar-thumb:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <!-- ハンバーガーメニュー -->
+    <button id="hamburger-menu-btn" aria-label="メニュー">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+    </button>
+
+    <!-- サイドメニュー -->
+    <aside id="table-of-contents">
+        <h2>AREChat</h2>
+        <ul>
+            <li><a href="/chat">💬 AIチャット</a></li>
+            <li><a href="/old-chat">💬 チャットルーム</a></li>
+            <li><a href="/features">✨ 機能一覧</a></li>
+            <li><a href="/weather">🌤️ 天気情報</a></li>
+            <li><a href="/train">🚃 電車情報</a></li>
+            <li><a href="/games.html">🎮 ゲームセンター</a></li>
+            <li><a href="/logout">🔒 ログアウト</a></li>
+        </ul>
+    </aside>
+
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AIアシスタント</h1>
+            <div class="header-actions">
+                <a href="/weather" class="nav-btn">🌤️ 天気予報</a>
+                <a href="/train" class="nav-btn">🚆 運行情報</a>
+                <button class="nav-btn doc-btn" onclick="openDocModal()">📄 ドキュメント作成</button>
+            </div>
+            <div class="user-info">
+                <span class="username">{{ session.username }}</span>
+                <button class="logout-btn" onclick="location.href='/'">ログアウト</button>
+            </div>
+        </div>
+
+        <div class="chat-area">
+            <div class="messages" id="messages">
+                <div class="welcome-message">
+                    <h2>ようこそ！</h2>
+                    <p>何かお探しですか？お気軽にお話しください。</p>
+                </div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-container">
+                <input type="text" id="messageInput" placeholder="メッセージを入力..." autocomplete="off">
+                <button id="sendBtn">送信</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ドキュメント作成モーダル -->
+    <div class="modal" id="docModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📄 ドキュメント作成</h2>
+                <button class="close-modal" onclick="closeDocModal()">&times;</button>
+            </div>
+            <form id="docForm">
+                <div class="form-group">
+                    <label for="docTitle">タイトル</label>
+                    <input type="text" id="docTitle" placeholder="ドキュメントのタイトルを入力" required>
+                </div>
+                <div class="form-group">
+                    <label for="docContent">内容</label>
+                    <textarea id="docContent" placeholder="ドキュメントの内容を入力..." required></textarea>
+                </div>
+                <button type="submit" class="submit-btn">💾 作成してダウンロード</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        // ドキュメントモーダル
+        function openDocModal() {
+            document.getElementById('docModal').classList.add('active');
+        }
+
+        function closeDocModal() {
+            document.getElementById('docModal').classList.remove('active');
+            document.getElementById('docForm').reset();
+        }
+
+        // ドキュメント作成フォーム送信
+        document.getElementById('docForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const title = document.getElementById('docTitle').value;
+            const content = document.getElementById('docContent').value;
+            
+            try {
+                const response = await fetch('/download_document', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ title, content })
+                });
+                
+                if (response.ok) {
+                    // ダウンロード処理
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${title}_${new Date().getTime()}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    closeDocModal();
+                    alert('ドキュメントをダウンロードしました！');
+                } else {
+                    const error = await response.json();
+                    alert('エラー: ' + (error.error || '不明なエラー'));
+                }
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        });
+
+        // モーダル外クリックで閉じる
+        document.getElementById('docModal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                closeDocModal();
+            }
+        });
+
+        // メッセージを追加
+        function addMessage(text, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'ai'}`;
+            
+            const label = document.createElement('div');
+            label.className = 'message-label';
+            label.textContent = isUser ? 'あなた' : 'AIアシスタント';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+            
+            messageDiv.appendChild(label);
+            messageDiv.appendChild(bubble);
+            messagesDiv.appendChild(messageDiv);
+            
+            // スクロールを最下部に
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // メッセージ送信
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // ユーザーメッセージを表示
+            addMessage(message, true);
+            messageInput.value = '';
+
+            // タイピングインジケーター表示
+            typingIndicator.classList.add('active');
+            sendBtn.disabled = true;
+
+            // AIにメッセージ送信
+            socket.emit('send_to_ai', { message: message });
+        }
+
+        // 送信ボタンクリック
+        sendBtn.addEventListener('click', sendMessage);
+
+        // Enterキーで送信
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // AI応答受信
+        socket.on('ai_response', (data) => {
+            typingIndicator.classList.remove('active');
+            sendBtn.disabled = false;
+            
+            if (data.message) {
+                addMessage(data.message, false);
+            }
+            
+            messageInput.focus();
+        });
+
+        // 初期フォーカス
+        messageInput.focus();
+        // ハンバーガーメニュー
+        document.getElementById('hamburger-menu-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('table-of-contents').classList.toggle('open');
+        });
+
+        document.body.addEventListener('click', (e) => {
+            const toc = document.getElementById('table-of-contents');
+            if (toc.classList.contains('open') && !toc.contains(e.target)) {
+                toc.classList.remove('open');
+            }
+        });
+    </script>
+    <script src="/static/security_monitor.js"></script>
+</body>
+</html>
