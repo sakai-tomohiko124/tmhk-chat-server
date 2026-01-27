@@ -273,18 +273,18 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, register: false })
                 });
 
                 const data = await response.json();
 
-                if (response.ok) {
-                    showMessage('Login successful! Entering the temple...', 'success');
+                if (data.success) {
+                    showMessage(data.message || 'Login successful! Entering the temple...', 'success');
                     setTimeout(() => {
                         window.location.href = '/intro';
                     }, 1000);
                 } else {
-                    showMessage(data.error || 'Login failed', 'error');
+                    showMessage(data.message || 'Login failed', 'error');
                 }
             } catch (error) {
                 showMessage('Connection error. Please try again.', 'error');
@@ -325,23 +325,23 @@
             if (!isValid) return;
 
             try {
-                const response = await fetch('/register', {
+                const response = await fetch('/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, register: true })
                 });
 
                 const data = await response.json();
 
-                if (response.ok) {
-                    showMessage('Registration successful! Logging you in...', 'success');
+                if (data.success) {
+                    showMessage(data.message || 'Registration successful! Logging you in...', 'success');
                     setTimeout(() => {
                         window.location.href = '/intro';
                     }, 1000);
                 } else {
-                    showMessage(data.error || 'Registration failed', 'error');
+                    showMessage(data.message || 'Registration failed', 'error');
                 }
             } catch (error) {
                 showMessage('Connection error. Please try again.', 'error');

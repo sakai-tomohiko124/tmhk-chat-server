@@ -328,6 +328,13 @@
             padding: 40px;
             font-size: 1.5em;
         }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -367,6 +374,13 @@
             <div class="puzzle-area" id="puzzle-area">
                 <div class="loading">Loading your quest...</div>
             </div>
+            
+            <div class="controls">
+                <button id="hintBtn" class="hint-button">💡 Get Hint</button>
+                <button id="submitAnswerBtn" class="submit-button">Submit Answer</button>
+            </div>
+            
+            <div id="gameMessage" class="message"></div>
         </div>
 
         <div class="inventory-panel panel">
