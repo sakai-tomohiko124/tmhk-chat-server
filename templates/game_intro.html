@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temple of Mysteries - Your Quest Begins</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #1a0a2e 0%, #3d1f5c 50%, #6b2d5c 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffd700;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .intro-container {
+            background: rgba(26, 10, 46, 0.95);
+            border: 3px solid #ffd700;
+            border-radius: 15px;
+            padding: 50px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.4);
+            animation: fadeIn 1.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+            }
+            to {
+                text-shadow: 3px 3px 20px rgba(255, 215, 0, 0.8), 3px 3px 6px rgba(0, 0, 0, 0.8);
+            }
+        }
+
+        .greeting {
+            text-align: center;
+            font-size: 1.5em;
+            color: #c9a961;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+
+        .player-name {
+            color: #ffd700;
+            font-weight: bold;
+            text-transform: capitalize;
+        }
+
+        .story {
+            line-height: 1.8;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            text-align: justify;
+            color: #e6d7b8;
+        }
+
+        .story p {
+            margin-bottom: 20px;
+            animation: fadeIn 2s ease-in;
+        }
+
+        .story p:nth-child(2) {
+            animation-delay: 0.5s;
+            opacity: 0;
+            animation-fill-mode: forwards;
+        }
+
+        .story p:nth-child(3) {
+            animation-delay: 1s;
+            opacity: 0;
+            animation-fill-mode: forwards;
+        }
+
+        .story p:nth-child(4) {
+            animation-delay: 1.5s;
+            opacity: 0;
+            animation-fill-mode: forwards;
+        }
+
+        .divider {
+            height: 2px;
+            background: linear-gradient(to right, transparent, #ffd700, transparent);
+            margin: 30px 0;
+        }
+
+        .begin-button {
+            display: block;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #ffd700 0%, #c9a961 100%);
+            border: none;
+            border-radius: 10px;
+            color: #1a0a2e;
+            font-size: 1.3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Georgia', serif;
+            text-decoration: none;
+            text-align: center;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .begin-button:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.6);
+            animation: none;
+        }
+
+        .begin-button:active {
+            transform: translateY(-1px) scale(1.03);
+        }
+
+        .warning {
+            text-align: center;
+            color: #ff6b6b;
+            font-size: 0.9em;
+            margin-top: 20px;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .intro-container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .greeting {
+                font-size: 1.2em;
+            }
+
+            .story {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="intro-container">
+        <h1>⚔️ The Temple of Mysteries ⚔️</h1>
+        
+        <div class="greeting">
+            Welcome, brave adventurer <span class="player-name" id="player-name">Hero</span>!
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="story">
+            <p>
+                You awaken in the depths of an ancient temple, the air thick with the scent of ages past. 
+                The last thing you remember is touching a mysterious artifact in the archaeological dig site. 
+                Now, you find yourself trapped in this sacred place, sealed away from the outside world.
+            </p>
+            <p>
+                The walls are adorned with cryptic symbols and ancient puzzles, each one a guardian of the temple's secrets. 
+                Legend speaks of four sacred trials that test the mind, the spirit, and the wisdom of those who dare to seek freedom.
+            </p>
+            <p>
+                To escape this mystical prison, you must solve the riddles of the ancients, collect sacred artifacts, 
+                and prove yourself worthy of passing through the temple's four chambers. Each chamber grows more challenging, 
+                demanding greater intelligence and insight.
+            </p>
+            <p>
+                Your journey will not be easy, brave one. You will need wit, courage, and determination. 
+                But fear not - for those who persevere, freedom awaits at the temple's heart.
+            </p>
+        </div>
+
+        <div class="divider"></div>
+
+        <a href="/game" class="begin-button">⚡ Begin Your Adventure ⚡</a>
+
+        <p class="warning">
+            ⚠️ Once you enter, there is no turning back until you escape or fall in battle ⚠️
+        </p>
+    </div>
+
+    <script>
+        // Fetch and display player name
+        async function loadPlayerInfo() {
+            try {
+                const response = await fetch('/api/player');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('player-name').textContent = data.username || 'Hero';
+                }
+            } catch (error) {
+                console.error('Failed to load player info:', error);
+            }
+        }
+
+        loadPlayerInfo();
+    </script>
+</body>
+</html>

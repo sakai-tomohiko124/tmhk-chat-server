@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temple of Mysteries - The Quest</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #1a0a2e 0%, #3d1f5c 50%, #6b2d5c 100%);
+            min-height: 100vh;
+            color: #ffd700;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(26, 10, 46, 0.9);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+        }
+
+        .panel h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .player-panel {
+            height: fit-content;
+        }
+
+        .stat-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(61, 31, 92, 0.5);
+            border-radius: 5px;
+            border-left: 4px solid #ffd700;
+        }
+
+        .stat-label {
+            color: #c9a961;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .hp-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(61, 31, 92, 0.8);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ff4757);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            color: white;
+        }
+
+        .inventory-panel {
+            height: fit-content;
+        }
+
+        .inventory-items {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .inventory-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: rgba(61, 31, 92, 0.5);
+            border-radius: 5px;
+            border: 1px solid #6b2d5c;
+            animation: itemAppear 0.5s ease-in;
+        }
+
+        @keyframes itemAppear {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .inventory-item-name {
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 5px;
+        }
+
+        .inventory-item-desc {
+            font-size: 0.9em;
+            color: #c9a961;
+        }
+
+        .empty-inventory {
+            text-align: center;
+            color: #8b7355;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .main-game-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .stage-indicator {
+            background: rgba(26, 10, 46, 0.9);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .puzzle-area {
+            background: rgba(26, 10, 46, 0.9);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 30px;
+            min-height: 400px;
+        }
+
+        .puzzle-title {
+            font-size: 2em;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .puzzle-description {
+            font-size: 1.1em;
+            line-height: 1.6;
+            color: #e6d7b8;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .puzzle-content {
+            margin-bottom: 30px;
+        }
+
+        .puzzle-image {
+            text-align: center;
+            font-size: 4em;
+            margin: 20px 0;
+        }
+
+        .puzzle-clue {
+            background: rgba(61, 31, 92, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #ffd700;
+            margin: 20px 0;
+            font-style: italic;
+            color: #c9a961;
+        }
+
+        .answer-form {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .answer-input {
+            flex: 1;
+            padding: 15px;
+            background: rgba(61, 31, 92, 0.5);
+            border: 2px solid #6b2d5c;
+            border-radius: 8px;
+            color: #ffd700;
+            font-size: 1.1em;
+        }
+
+        .answer-input:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .submit-button, .hint-button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #ffd700 0%, #c9a961 100%);
+            border: none;
+            border-radius: 8px;
+            color: #1a0a2e;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Georgia', serif;
+        }
+
+        .hint-button {
+            background: linear-gradient(135deg, #6b2d5c 0%, #3d1f5c 100%);
+            color: #ffd700;
+            border: 2px solid #ffd700;
+        }
+
+        .submit-button:hover, .hint-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.5);
+        }
+
+        .hint-display {
+            background: rgba(107, 45, 92, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            color: #e6d7b8;
+            border: 1px solid #ffd700;
+            display: none;
+        }
+
+        .hint-display.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        .message.success {
+            background: rgba(76, 175, 80, 0.3);
+            border: 2px solid #4caf50;
+            color: #90ee90;
+        }
+
+        .message.error {
+            background: rgba(244, 67, 54, 0.3);
+            border: 2px solid #f44336;
+            color: #ff6b6b;
+        }
+
+        .stage-complete {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .stage-complete h3 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #90ee90;
+        }
+
+        .next-stage-button {
+            padding: 20px 40px;
+            background: linear-gradient(135deg, #ffd700 0%, #c9a961 100%);
+            border: none;
+            border-radius: 10px;
+            color: #1a0a2e;
+            font-size: 1.3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Georgia', serif;
+        }
+
+        .next-stage-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 30px rgba(255, 215, 0, 0.6);
+        }
+
+        @media (max-width: 1200px) {
+            .game-container {
+                grid-template-columns: 1fr;
+            }
+
+            .inventory-panel {
+                order: 3;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.5em;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="player-panel panel">
+            <h2>⚔️ Player Status</h2>
+            <div class="stat-item">
+                <div class="stat-label">Adventurer</div>
+                <div class="stat-value" id="player-name">Loading...</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Health Points</div>
+                <div class="stat-value" id="player-hp">100/100</div>
+                <div class="hp-bar">
+                    <div class="hp-fill" id="hp-bar" style="width: 100%">100%</div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Intelligence</div>
+                <div class="stat-value" id="player-intelligence">10</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Experience</div>
+                <div class="stat-value" id="player-exp">0 XP</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Current Chamber</div>
+                <div class="stat-value" id="player-stage">1 of 4</div>
+            </div>
+        </div>
+
+        <div class="main-game-area">
+            <div class="stage-indicator">
+                <span id="stage-title">Chamber 1: The Hall of Numbers</span>
+            </div>
+
+            <div class="puzzle-area" id="puzzle-area">
+                <div class="loading">Loading your quest...</div>
+            </div>
+        </div>
+
+        <div class="inventory-panel panel">
+            <h2>🎒 Inventory</h2>
+            <div class="inventory-items" id="inventory-items">
+                <div class="empty-inventory">No items collected yet</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/game.js"></script>
+</body>
+</html>
