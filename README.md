@@ -1,7 +1,7 @@
-# そういう時は、AREだ！ — RPG謎解き（Flask + Vanilla JS）
+# そういう時は、AREだ！ — RPG謎解き（Python標準HTTP + Vanilla JS）
 
 ブラウザで遊べる、章立てのRPG風「リアル謎解き」サイトです。
-UI（HTML/CSS/JavaScript）で進行・演出・セーブ/ロードを行い、Python/Flaskで答え判定とヒントを返します。
+UI（HTML/CSS/JavaScript）で進行・演出・セーブ/ロードを行い、Python（標準ライブラリのHTTPサーバー）で答え判定とヒントを返します。
 
 ## 起動
 
@@ -13,7 +13,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-起動後、http://localhost:5000 を開きます。
+起動後、http://localhost:5000 を開きます。（`PORT` 環境変数で変更可）
 
 ## ゲーム仕様
 
@@ -25,8 +25,8 @@ python app.py
 
 ## 構成
 
-- [app.py](app.py) : Flaskサーバー（`/` と `/api/*`）
-- [templates/index.html](templates/index.html) : 画面UI
+- [app.py](app.py) : Python標準HTTPサーバー（`/` と `/api/*` と `/static/*`）
+- [index.html](index.html) : 画面UI
 - [static/css/game.css](static/css/game.css) : RPG風デザイン
 - [static/js/game.js](static/js/game.js) : 章立て/タイマー/レベル/進行ロジック
 

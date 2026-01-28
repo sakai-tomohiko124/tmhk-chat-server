@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>そういう時は、AREだ！ — RPG謎解き</title>
+  <link rel="stylesheet" href="/static/css/game.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand__title">そういう時は、AREだ！</div>
+        <div class="brand__sub">王道RPG風 × 章立て謎解き（ブラウザ）</div>
+      </div>
+      <div class="topbar__actions">
+        <button class="btn" id="btnNew">さいしょから</button>
+        <button class="btn" id="btnSave">せーぶ</button>
+        <button class="btn" id="btnLoad">ろーど</button>
+        <a class="btn" href="https://sakai-tomohiko124.github.io/link.html" target="_blank" rel="noopener noreferrer">りんく</a>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="pane pane--left">
+        <div class="window">
+          <div class="window__title">まっぷ</div>
+          <div class="window__body">
+            <div class="map" id="map"></div>
+            <div class="mapHelp">いけるところを おしてね</div>
+          </div>
+        </div>
+
+        <div class="window">
+          <div class="window__title">すてーたす</div>
+          <div class="window__body">
+            <div class="stats">
+              <div class="stat"><span>しんこう</span><span id="statProgress">0%</span></div>
+              <div class="stat"><span>Lv</span><span id="statClues">1</span></div>
+              <div class="stat"><span>EXP</span><span id="statKeys">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="window">
+          <div class="window__title">なかま</div>
+          <div class="window__body">
+            <div class="party" id="party"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane pane--right">
+        <div class="window window--scene">
+          <div class="window__title" id="sceneTitle">---</div>
+          <div class="window__body">
+            <div class="scene">
+              <div class="scene__art" id="sceneArt" aria-hidden="true"></div>
+              <div class="scene__desc" id="sceneDesc"></div>
+
+              <div class="dialog">
+                <div class="dialog__meta">
+                  <div class="badge" id="questBadge">---</div>
+                  <div class="badge badge--muted" id="difficultyBadge">難易度: やさしい</div>
+                  <div class="badge badge--trial" id="trialBadge" hidden>お試しで解く</div>
+                  <div class="timer" id="timer">--:--</div>
+                </div>
+                <div class="dialog__log" id="log" aria-live="polite"></div>
+                <div class="dialog__controls">
+                  <input class="input" id="answerInput" placeholder="ここに こたえを いれてね" autocomplete="off" />
+                  <button class="btn btn--primary" id="btnSubmit">けってい</button>
+                  <button class="btn" id="btnHint">ひんと</button>
+                </div>
+                <div class="dialog__choices" id="choices"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="footer">
+          <div class="footer__note">
+            このゲームはブラウザにセーブして進みます。こたえチェックはサーバーがします。
+          </div>
+          <div class="footer__note">
+            べつのページ：<a href="https://sakai-tomohiko124.github.io/link.html" target="_blank" rel="noopener noreferrer">https://sakai-tomohiko124.github.io/link.html</a>
+          </div>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/js/game.js"></script>
+</body>
+</html>
