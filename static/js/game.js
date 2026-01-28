@@ -50,10 +50,22 @@ function updatePlayerStatusDisplay() {
     if (!playerData) return;
     
     document.getElementById('player-name').textContent = playerData.username;
+    document.getElementById('player-level').textContent = `Lv.${playerData.level}`;
     document.getElementById('player-hp').textContent = `${playerData.hp}/100`;
     document.getElementById('player-intelligence').textContent = playerData.intelligence;
     document.getElementById('player-exp').textContent = `${playerData.experience} XP`;
     document.getElementById('player-stage').textContent = `${currentStage} of 4`;
+    
+    // 次のレベルまでの経験値を表示
+    const expInfo = document.getElementById('exp-info');
+    if (expInfo) {
+        if (playerData.level >= playerData.max_level) {
+            expInfo.textContent = 'MAX LEVEL!';
+            expInfo.style.color = '#ffd700';
+        } else {
+            expInfo.textContent = `Next: ${playerData.exp_to_next_level} XP`;
+        }
+    }
     
     // HPバーの更新
     const hpBar = document.getElementById('hp-bar');
@@ -292,9 +304,16 @@ async function submitAnswer() {
         if (data.success && data.correct) {
             showMessage('🎉 正解です！', 'success');
             
+            // レベルアップ通知
+            if (data.level_up) {
+                showLevelUpModal(data.new_level);
+            }
+            
             // 報酬アイテムの表示
             if (data.reward) {
-                showRewardModal(data.reward);
+                setTimeout(() => {
+                    showRewardModal(data.reward);
+                }, data.level_up ? 2000 : 500);
             }
             
             // 次のステージへ
@@ -308,7 +327,7 @@ async function submitAnswer() {
                     // ゲームクリア
                     window.location.href = '/game/complete';
                 }
-            }, 2000);
+            }, data.level_up || data.reward ? 3000 : 2000);
         } else {
             showMessage('❌ ' + data.message, 'error');
         }
@@ -353,6 +372,37 @@ function showHintModal(hint, hintsUsed) {
     setTimeout(() => {
         modal.classList.add('show');
     }, 10);
+}
+
+// ================================================================================
+// レベルアップ表示
+// ================================================================================
+
+function showLevelUpModal(newLevel) {
+    const modal = document.createElement('div');
+    modal.className = 'modal level-up-modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3>⭐ LEVEL UP! ⭐</h3>
+            <div class="level-up-display">
+                <div class="new-level">Level ${newLevel}</div>
+                <div class="level-up-text">おめでとうございます！</div>
+            </div>
+            <button onclick="this.closest('.modal').remove()">続ける</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+    
+    // 3秒後に自動的に閉じる
+    setTimeout(() => {
+        if (modal.parentNode) {
+            modal.remove();
+        }
+    }, 2500);
 }
 
 // ================================================================================

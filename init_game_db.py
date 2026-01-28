@@ -28,6 +28,7 @@ def init_database():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
+        level INTEGER DEFAULT 1,
         current_stage INTEGER DEFAULT 1,
         hp INTEGER DEFAULT 100,
         intelligence INTEGER DEFAULT 10,

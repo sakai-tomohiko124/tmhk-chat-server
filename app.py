@@ -19,6 +19,36 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-producti
 DB_PATH = 'game.db'
 
 # ================================================================================
+# レベルシステム定数
+# ================================================================================
+
+# 最大レベル
+MAX_LEVEL = 100
+
+# レベルアップに必要な経験値（レベル×100）
+def exp_for_level(level):
+    """指定レベルに到達するために必要な累積経験値を計算"""
+    if level <= 1:
+        return 0
+    # レベル2: 100, レベル3: 300, レベル4: 600, ...
+    # 累積経験値 = 100 * (1 + 2 + 3 + ... + (level-1))
+    # = 100 * (level-1) * level / 2
+    return int(100 * (level - 1) * level / 2)
+
+def calculate_level(experience):
+    """経験値から現在のレベルを計算"""
+    level = 1
+    while level < MAX_LEVEL and experience >= exp_for_level(level + 1):
+        level += 1
+    return level
+
+def exp_to_next_level(experience, current_level):
+    """次のレベルまでに必要な経験値を計算"""
+    if current_level >= MAX_LEVEL:
+        return 0
+    return exp_for_level(current_level + 1) - experience
+
+# ================================================================================
 # データベースヘルパー関数
 # ================================================================================
 
@@ -165,15 +195,26 @@ def get_player_status():
     if not player:
         return jsonify({'success': False, 'message': 'プレイヤーが見つかりません'})
     
+    # 経験値から現在のレベルを計算
+    current_level = calculate_level(player['experience'])
+    exp_needed = exp_to_next_level(player['experience'], current_level)
+    
+    # レベルが変わっていたらDBを更新
+    if current_level != player['level']:
+        execute_db('UPDATE players SET level = ? WHERE id = ?', [current_level, player['id']])
+    
     return jsonify({
         'success': True,
         'player': {
             'id': player['id'],
             'username': player['username'],
+            'level': current_level,
             'current_stage': player['current_stage'],
             'hp': player['hp'],
             'intelligence': player['intelligence'],
-            'experience': player['experience']
+            'experience': player['experience'],
+            'exp_to_next_level': exp_needed,
+            'max_level': MAX_LEVEL
         }
     })
 
@@ -291,12 +332,31 @@ def submit_puzzle_answer():
             [datetime.now(), session['player_id'], stage_id]
         )
         
+        # 現在のレベルを記録
+        old_level = calculate_level(query_db('SELECT experience FROM players WHERE id = ?', 
+                                              [session['player_id']], one=True)['experience'])
+        
         # プレイヤーのステージを進める
         if stage_id == player['current_stage'] and stage_id < 4:
+            exp_gain = stage_id * 10
             execute_db(
                 'UPDATE players SET current_stage = ?, experience = experience + ? WHERE id = ?',
-                [stage_id + 1, stage_id * 10, session['player_id']]
+                [stage_id + 1, exp_gain, session['player_id']]
             )
+            
+            # 新しいレベルを計算
+            new_player = query_db('SELECT experience FROM players WHERE id = ?', 
+                                  [session['player_id']], one=True)
+            new_level = calculate_level(new_player['experience'])
+            level_up = new_level > old_level
+            
+            # レベルが上がった場合はDBを更新
+            if level_up:
+                execute_db('UPDATE players SET level = ? WHERE id = ?', 
+                          [new_level, session['player_id']])
+        else:
+            level_up = False
+            new_level = old_level
         
         # ステージクリア報酬アイテムを付与
         item = query_db('SELECT * FROM items WHERE stage_reward = ?', [stage_id], one=True)
@@ -317,7 +377,9 @@ def submit_puzzle_answer():
             'success': True,
             'correct': True,
             'message': '正解です！次のステージへ進めます',
-            'reward': dict(item) if item else None
+            'reward': dict(item) if item else None,
+            'level_up': level_up,
+            'new_level': new_level if level_up else None
         })
     else:
         return jsonify({
