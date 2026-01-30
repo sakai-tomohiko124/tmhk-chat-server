@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ja">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="dark" />
+		<title>CHRONO SLATE // 2035</title>
+		<meta name="description" content="石板を集め、時を繋ぎ、ミッションを完遂せよ。" />
+
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+JP:wght@400;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<link rel="stylesheet" href="assets/css/neo2035.css" />
+	</head>
+	<body>
+		<div class="bg" aria-hidden="true">
+			<div class="bg__stars"></div>
+			<div class="bg__scanlines"></div>
+			<div class="bg__grid"></div>
+			<div class="bg__glow"></div>
+		</div>
+
+		<header class="topbar">
+			<div class="brand">
+				<div class="brand__mark" aria-hidden="true"></div>
+				<div class="brand__text">
+					<div class="brand__title">CHRONO SLATE</div>
+					<div class="brand__sub">DQ7石板×タイム回路×スパイHUD — 謎解き土台</div>
+				</div>
+			</div>
+
+			<nav class="nav" aria-label="メイン">
+				<a class="nav__link" href="#briefing">BRIEFING</a>
+				<a class="nav__link" href="#puzzle">PUZZLE</a>
+				<a class="nav__link" href="#slate">SLATE</a>
+				<a class="nav__link" href="#circuits">TIME</a>
+				<button class="nav__btn" id="btnReset" type="button">RESET</button>
+			</nav>
+		</header>
+
+		<main class="shell">
+			<section id="briefing" class="panel panel--left" aria-labelledby="briefingTitle">
+				<div class="panel__hdr">
+					<div class="panel__kicker">AGENCY</div>
+					<h1 class="panel__title" id="briefingTitle">M1 // ミッション・ブリーフ</h1>
+				</div>
+
+				<div class="hud">
+					<div class="hud__row">
+						<div class="chip chip--good">STATUS: ACTIVE</div>
+						<div class="chip">CLEARANCE: OMEGA</div>
+					</div>
+					<div class="hud__block">
+						<div class="hud__label">OBJECTIVE</div>
+						<div class="hud__value">失われた石板を復元し、時系列ノードを安定化せよ。</div>
+					</div>
+					<div class="hud__block">
+						<div class="hud__label">RULES</div>
+						<ul class="hud__list">
+							<li>謎を解くと「石板の欠片」が手に入る。</li>
+							<li>欠片が揃うと「時の回路」が同期する。</li>
+							<li>進捗はブラウザに保存（localStorage）。</li>
+						</ul>
+					</div>
+				</div>
+
+				<div class="dossier">
+					<div class="dossier__hdr">
+						<div class="dossier__title">DOSSIER</div>
+						<div class="dossier__meta" id="metaNow">--:--:--</div>
+					</div>
+					<div class="dossier__body" id="briefingBody">
+						2035年。時系列は断層化し、歴史のピースが“石板”として散逸した。
+						あなたはM1のオペレーター。回収・復元・同期――すべてはあなたの入力次第。
+					</div>
+				</div>
+
+				<div class="panel__footer">
+					<div class="tiny">TIP: キーボードは <span class="kbd">Enter</span> で解答</div>
+				</div>
+			</section>
+
+			<section id="puzzle" class="panel panel--center" aria-labelledby="puzzleTitle">
+				<div class="panel__hdr">
+					<div class="panel__kicker">TERMINAL</div>
+					<h2 class="panel__title" id="puzzleTitle">謎解きコンソール</h2>
+				</div>
+
+				<div class="terminal">
+					<div class="terminal__top">
+						<div class="terminal__lights" aria-hidden="true">
+							<span class="dot dot--r"></span>
+							<span class="dot dot--y"></span>
+							<span class="dot dot--g"></span>
+						</div>
+						<div class="terminal__path">/ops/m1/chrono_slate</div>
+					</div>
+
+					<div class="terminal__body">
+						<div class="prompt">
+							<div class="prompt__label">PUZZLE</div>
+							<div class="prompt__value" id="puzzleText">読み込み中...</div>
+						</div>
+
+						<div class="inputrow">
+							<label class="sr-only" for="answer">解答</label>
+							<input
+								id="answer"
+								class="input"
+								type="text"
+								inputmode="text"
+								autocomplete="off"
+								spellcheck="false"
+								placeholder="答えを入力（例: 42）"
+							/>
+							<button id="btnSubmit" class="btn btn--primary" type="button">送信</button>
+						</div>
+
+						<div class="terminal__row">
+							<button id="btnHint" class="btn" type="button">HINT</button>
+							<button id="btnSkip" class="btn" type="button" title="開発用：次へ（石板欠片は付与しない）">
+								SKIP
+							</button>
+							<div class="spacer"></div>
+							<div class="score">
+								<div class="score__label">FRAGMENTS</div>
+								<div class="score__value"><span id="fragCount">0</span>/<span id="fragMax">16</span></div>
+							</div>
+						</div>
+
+						<div class="log" aria-live="polite" aria-atomic="false" id="log"></div>
+					</div>
+				</div>
+			</section>
+
+			<section id="slate" class="panel panel--right" aria-labelledby="slateTitle">
+				<div class="panel__hdr">
+					<div class="panel__kicker">RELIC</div>
+					<h2 class="panel__title" id="slateTitle">石板庫（DQ7風）</h2>
+				</div>
+
+				<div class="slate">
+					<div class="slate__legend">
+						<div class="chip">SLOTS: 4×4</div>
+						<div class="chip chip--warn">MISSING: <span id="missingCount">16</span></div>
+					</div>
+
+					<div class="slate__grid" id="slateGrid" role="grid" aria-label="石板の欠片グリッド"></div>
+
+					<div class="slate__actions">
+						<button id="btnAssemble" class="btn btn--primary" type="button">ASSEMBLE</button>
+						<button id="btnShuffle" class="btn" type="button">SHUFFLE</button>
+					</div>
+
+					<div class="slate__note">
+						欠片は「順不同」でハマる設定。土台なので、後で“場所一致型”にも拡張できます。
+					</div>
+				</div>
+			</section>
+
+			<section id="circuits" class="panel panel--wide" aria-labelledby="timeTitle">
+				<div class="panel__hdr">
+					<div class="panel__kicker">TEMPORAL</div>
+					<h2 class="panel__title" id="timeTitle">TIME CIRCUITS（BTTF風）</h2>
+				</div>
+
+				<div class="circuits">
+					<div class="circuits__stack">
+						<div class="circuit">
+							<div class="circuit__label">DESTINATION TIME</div>
+							<div class="circuit__value" id="destTime">----/--/-- --:--:--</div>
+						</div>
+						<div class="circuit">
+							<div class="circuit__label">PRESENT TIME</div>
+							<div class="circuit__value" id="presentTime">----/--/-- --:--:--</div>
+						</div>
+						<div class="circuit">
+							<div class="circuit__label">LAST TIME DEPARTED</div>
+							<div class="circuit__value" id="lastTime">----/--/-- --:--:--</div>
+						</div>
+					</div>
+
+					<div class="circuits__controls">
+						<div class="field">
+							<label class="field__label" for="destInput">目的時刻（例: 1985-10-26T01:21:00）</label>
+							<input id="destInput" class="input" type="datetime-local" />
+						</div>
+						<div class="circuits__btns">
+							<button id="btnSetDest" class="btn btn--primary" type="button">SET DEST</button>
+							<button id="btnDepart" class="btn" type="button">DEPART</button>
+							<button id="btnSync" class="btn" type="button">SYNC</button>
+						</div>
+						<div class="tiny">SYNCは石板の進捗に応じて演出が変わる（実装済み）</div>
+					</div>
+				</div>
+			</section>
+		</main>
+
+		<footer class="footer">
+			<div class="footer__left">© 2035 CHRONO SLATE (prototype)</div>
+			<div class="footer__right">Build: <span id="buildId">local</span></div>
+		</footer>
+
+		<script src="assets/js/chrono-slate.js" type="module"></script>
+	</body>
+</html>
