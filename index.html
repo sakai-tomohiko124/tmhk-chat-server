@@ -120,6 +120,18 @@
 						</div>
 
 						<div class="terminal__row">
+							<div class="chip">
+								MODE
+								<select id="difficulty" class="select" aria-label="難易度">
+									<option value="beginner">初心者</option>
+									<option value="elementary">小学生</option>
+									<option value="junior">中学生</option>
+									<option value="high">高校生</option>
+									<option value="adult">大人</option>
+								</select>
+							</div>
+							<div class="chip">MISSION: <span id="missionNow">1</span>/<span id="missionMax">10</span></div>
+							<div class="chip">TIMELINE: <span id="timelineNow">—</span></div>
 							<button id="btnHint" class="btn" type="button">HINT</button>
 							<button id="btnSkip" class="btn" type="button" title="開発用：次へ（石板欠片は付与しない）">
 								SKIP
@@ -127,7 +139,7 @@
 							<div class="spacer"></div>
 							<div class="score">
 								<div class="score__label">FRAGMENTS</div>
-								<div class="score__value"><span id="fragCount">0</span>/<span id="fragMax">16</span></div>
+								<div class="score__value"><span id="fragCount">0</span>/<span id="fragMax">10</span></div>
 							</div>
 						</div>
 
@@ -149,6 +161,7 @@
 					</div>
 
 					<div class="slate__grid" id="slateGrid" role="grid" aria-label="石板の欠片グリッド"></div>
+					<div class="slate__tray" aria-label="取得した欠片" id="slateTray"></div>
 
 					<div class="slate__actions">
 						<button id="btnAssemble" class="btn btn--primary" type="button">ASSEMBLE</button>
@@ -156,7 +169,7 @@
 					</div>
 
 					<div class="slate__note">
-						欠片は「順不同」でハマる設定。土台なので、後で“場所一致型”にも拡張できます。
+						欠片は「場所一致」でハメる方式（DQ7風）。下のトレイから欠片を選び、正しいマスに配置してください。
 					</div>
 				</div>
 			</section>

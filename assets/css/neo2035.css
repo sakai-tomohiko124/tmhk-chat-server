@@ -220,6 +220,20 @@ a{color:inherit}
 .score__label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:rgba(255,255,255,.62)}
 .score__value{font-family:var(--mono);font-size:14px}
 
+.select{
+  margin-left:8px;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.22);
+  color: rgba(255,255,255,.92);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .06em;
+  outline: none;
+}
+.select:focus{border-color:rgba(53,246,255,.45);box-shadow:0 0 0 4px rgba(53,246,255,.10)}
+
 .log{margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px;min-height:120px;display:grid;gap:8px}
 .log__line{font-family:var(--mono);font-size:12px;line-height:1.6;color:rgba(255,255,255,.82)}
 .log__line--good{color:rgba(109,255,181,.92)}
@@ -232,6 +246,76 @@ a{color:inherit}
   display:grid;
   grid-template-columns: repeat(4, 1fr);
   gap:10px;
+}
+
+.slate__tray{
+  margin-top:12px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:10px;
+  border-radius:16px;
+  border:1px dashed rgba(255,255,255,.14);
+  background: rgba(0,0,0,.14);
+  min-height:54px;
+}
+
+.frag{
+  appearance:none;
+  border-radius:14px;
+  border:1px solid rgba(109,255,181,.28);
+  background: rgba(109,255,181,.08);
+  color: rgba(109,255,181,.92);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .10em;
+  padding:10px 12px;
+  cursor:pointer;
+}
+.frag:hover{transform:translateY(-1px)}
+.frag--selected{border-color:rgba(53,246,255,.48);background:rgba(53,246,255,.10);color:rgba(53,246,255,.92)}
+.frag--used{opacity:.45;border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:rgba(255,255,255,.65);cursor:not-allowed}
+
+.slatecell__coord{
+  position:absolute;
+  left:10px;top:10px;
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.12em;
+  color: rgba(255,255,255,.50);
+  opacity:.95;
+}
+.slatecell--locked{opacity:.6}
+
+.puzzle__figure{
+  margin-top:10px;
+  padding:10px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+}
+.puzzle__figureTitle{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:rgba(255,179,71,.92);margin-bottom:8px}
+.puzzle__table{width:100%;border-collapse:separate;border-spacing:8px}
+.puzzle__table td,.puzzle__table th{
+  text-align:center;
+  padding:10px 8px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  font-family: var(--mono);
+}
+.puzzle__grid3{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:10px;
+}
+.puzzle__cell{
+  padding:12px 10px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  text-align:center;
+  font-family: var(--mono);
 }
 
 .slatecell{
@@ -316,6 +400,20 @@ a{color:inherit}
   .shell{grid-template-columns: 1fr;}
   .panel--wide{grid-column:auto}
   .circuits{grid-template-columns:1fr}
+}
+
+@media (max-width: 520px){
+  .topbar{padding:12px 12px;gap:12px;flex-wrap:wrap}
+  .brand{min-width:unset}
+  .shell{padding:12px}
+  .terminal{margin:12px}
+  .panel__hdr{padding:14px 14px 10px}
+}
+
+@media (orientation: landscape) and (max-height: 520px){
+  .shell{padding:12px;gap:12px}
+  .panel__hdr{padding:12px 12px 8px}
+  .terminal__body{padding:10px}
 }
 
 @media (prefers-reduced-motion: reduce){
